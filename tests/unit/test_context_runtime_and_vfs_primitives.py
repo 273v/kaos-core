@@ -7,6 +7,7 @@ from typing import Any
 import pytest
 
 from kaos_core import (
+    ArtifactRole,
     KaosContext,
     KaosResource,
     KaosRuntime,
@@ -16,6 +17,7 @@ from kaos_core import (
     ToolCategory,
     VFSConfig,
     VFSFile,
+    VFSWalkOptions,
     VirtualFileSystem,
     kaos_tool,
 )
@@ -192,6 +194,7 @@ async def test_runtime_defaults_resource_helpers_and_shutdown() -> None:
 
 async def test_vfs_backends_paths_and_file_operations(tmp_path: Path) -> None:
     memory_vfs = VirtualFileSystem()
+    assert memory_vfs.config.default_backend is StorageBackend.DISK
     path = memory_vfs.get_path("folder/file.txt", context_id="ctx")
 
     assert path.name == "file.txt"
@@ -257,3 +260,55 @@ async def test_vfs_backends_paths_and_file_operations(tmp_path: Path) -> None:
     assert raw.read(2) == b"cd"
     raw.close()
     assert raw.closed is True
+
+
+async def test_vfs_stat_ranges_pages_and_artifacts(tmp_path: Path) -> None:
+    runtime = KaosRuntime()
+    runtime.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    runtime.artifacts = runtime.artifacts.__class__(runtime.vfs)
+
+    context = KaosContext.create(session_id="artifact-session", runtime=runtime)
+    report = context.get_vfs_path("artifacts/report.txt")
+    await report.write_text("abcdefghijklmnopqrstuvwxyz")
+
+    stat = await report.stat()
+    assert stat.exists is True
+    assert stat.kind == "file"
+    assert stat.size == 26
+    assert stat.mime_type == "text/plain"
+
+    assert await report.read_range(5, 4) == b"fghi"
+
+    page = await runtime.vfs.list_page("artifacts", context_id=context.session_id, limit=1)
+    assert page.items == ["artifacts/report.txt"]
+    assert page.next_cursor is None
+
+    walked = await runtime.vfs.walk(
+        "artifacts",
+        context_id=context.session_id,
+        options=VFSWalkOptions(patterns=["artifacts/*.txt"]),
+    )
+    assert walked.total_count == 1
+    assert walked.items[0].path == "artifacts/report.txt"
+
+    assert (
+        runtime.vfs.safe_join("artifacts", "nested", "summary.md") == "artifacts/nested/summary.md"
+    )
+    with pytest.raises(ValueError):
+        runtime.vfs.safe_join("artifacts", "../escape.txt")
+
+    manifest = await runtime.artifacts.create_from_path(
+        "artifacts/report.txt",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="report",
+        role=ArtifactRole.BODY,
+        mime_type="text/plain",
+        metadata={"kind": "demo"},
+    )
+    assert manifest.body_uri.endswith("/body")
+    assert runtime.artifacts.resolve(manifest.manifest_uri).artifact_id == manifest.artifact_id
+    assert await runtime.artifacts.read_body(manifest.artifact_id, start=2, length=3) == b"cde"
+    assert '"name": "report"' in str(await context.read_resource(manifest.manifest_uri))

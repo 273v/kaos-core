@@ -8,6 +8,7 @@ from kaos_core.logging import ContextFilter, get_logger
 from kaos_core.protocol.capabilities import ClientCapabilities
 from kaos_core.protocol.initialize import InitializeRequest, InitializeResult
 from kaos_core.protocol.roots import Root
+from kaos_core.exceptions import RegistryError
 
 ProgressCallback = Callable[[float, float | None, str | None], Awaitable[None] | None]
 
@@ -133,7 +134,12 @@ class KaosContext:
         if self.runtime is None:
             msg = "Context is not attached to a runtime"
             raise RuntimeError(msg)
-        return await self.runtime.resources.get_resource(uri)
+        try:
+            return await self.runtime.resources.get_resource(uri)
+        except RegistryError:
+            if hasattr(self.runtime, "artifacts"):
+                return await self.runtime.artifacts.read_uri(uri)
+            raise
 
     def get_vfs_path(self, path: str) -> Any:
         return self.vfs.get_path(path, context_id=self.session_id)

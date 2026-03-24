@@ -5,15 +5,19 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from kaos_core.vfs.core import VirtualFileSystem
+    from kaos_core.vfs.models import VFSMetadata
 
 
 class VFSPath:
     def __init__(self, vfs: VirtualFileSystem, path: str, *, context_id: str | None = None) -> None:
         self.vfs = vfs
-        self._path = PurePosixPath(path)
+        self._path = PurePosixPath(vfs.normalize_path(path))
         self.context_id = context_id
 
     def __fspath__(self) -> str:
+        return str(self._path)
+
+    def __str__(self) -> str:
         return str(self._path)
 
     def __truediv__(self, other: str) -> VFSPath:
@@ -44,6 +48,14 @@ class VFSPath:
     async def read_bytes(self) -> bytes:
         return await self.vfs.read(str(self._path), context_id=self.context_id)
 
+    async def read_range(self, start: int = 0, length: int | None = None) -> bytes:
+        return await self.vfs.read_range(
+            str(self._path),
+            start=start,
+            length=length,
+            context_id=self.context_id,
+        )
+
     async def read_text(self, encoding: str = "utf-8") -> str:
         return (await self.read_bytes()).decode(encoding)
 
@@ -66,6 +78,9 @@ class VFSPath:
 
     async def mkdir(self) -> None:
         return None
+
+    async def stat(self) -> VFSMetadata:
+        return await self.vfs.stat(str(self._path), context_id=self.context_id)
 
     async def unlink(self) -> None:
         await self.vfs.delete(str(self._path), context_id=self.context_id)

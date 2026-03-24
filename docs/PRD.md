@@ -17,7 +17,7 @@
 ### 1.1 Goals
 
 - **MCP-native**: Internal data models are isomorphic to the MCP spec (2025-11-25) — tools, resources, prompts, sampling, elicitation, and roots are protocol-native shapes, not "exportable later". Convenience helpers layer on top but never replace the spec envelope.
-- **Pydantic-AI interoperable**: Once exposed through the sibling `kaos-mcp-server` module (stdio or streamable HTTP), KAOS tools are consumable as pydantic-ai toolsets (`MCPServerStdio`, `MCPServerStreamableHTTP`) with zero custom adapter code. kaos-core itself is a pure library — it does not run a transport.
+- **Pydantic-AI interoperable**: Once exposed through the sibling `kaos-mcp` module (stdio or streamable HTTP), KAOS tools are consumable as pydantic-ai toolsets (`MCPServerStdio`, `MCPServerStreamableHTTP`) with zero custom adapter code. kaos-core itself is a pure library — it does not run a transport.
 - **Async-first, sync-compatible**: All I/O operations are `async def` with thin synchronous wrappers where needed.
 - **Type-safe**: Pydantic v2 models throughout; full mypy/pyright compatibility; generic `Agent[DepsT, OutputT]` patterns where applicable.
 - **Python 3.13 + 3.14 compatible**: All schema extraction uses `inspect` / `typing.get_type_hints()` / `annotationlib`-safe paths to handle PEP 649 deferred annotation evaluation. CI validates both versions.
@@ -26,7 +26,7 @@
 ### 1.2 Non-Goals
 
 - This module does **not** contain domain-specific tools (billing, NLP, PDF, etc.) — those belong in sibling KAOS modules.
-- This module does **not** implement an MCP server or client transport layer directly — it defines the protocol-native data models and abstractions that `kaos-mcp-server` (a sibling module) serializes onto the wire. Pydantic-AI interop flows through that sibling server, not through kaos-core directly.
+- This module does **not** implement an MCP server or client transport layer directly — it defines the protocol-native data models and abstractions that `kaos-mcp` (a sibling module) serializes onto the wire. Pydantic-AI interop flows through that sibling server, not through kaos-core directly.
 - This module does **not** bundle an LLM client — LLM interaction is provided by `kaos-llm` or via pydantic-ai's model layer.
 
 ### 1.3 Relationship to kelvin_core
@@ -35,14 +35,34 @@
 |--------|-------------|-----------|
 | MCP alignment | Partial (tool/resource/prompt shapes) | Protocol-native (spec 2025-11-25 envelopes, annotations, roots, tasks†) |
 | Agent primitives | None | Sampling, elicitation (form + URL modes), roots, delegation |
-| Pydantic-AI integration | None | Via `kaos-mcp-server` — zero custom adapter code |
-| Transport awareness | None | Transport-agnostic abstractions; transport is `kaos-mcp-server`'s responsibility |
+| Pydantic-AI integration | None | Via `kaos-mcp` — zero custom adapter code |
+| Transport awareness | None | Transport-agnostic abstractions; transport is `kaos-mcp`'s responsibility |
 | Auth model | Credential store only | OAuth 2.1 resource-server token model |
 | Python version | >= 3.13 | >= 3.13, CI-validated on 3.13 + 3.14 |
 | Registry pattern | Process-global singletons | Runtime container with optional per-interpreter global access |
 | Config | Custom loader + TOML/YAML/env | Pydantic Settings v2 with profiles + env + secrets |
 
 _† Tasks are experimental in MCP 2025-11-25 and are feature-flagged in kaos-core v0.1._
+
+### 1.4 Interop Contract with `kaos-mcp`
+
+`kaos-core` is the contract-defining library for the sibling `kaos-mcp` FastMCP server/runtime layer.
+
+`kaos-mcp` may rely on these surfaces as the initial stable boundary:
+
+- `KaosRuntime` runtime-scoped registries and VFS access
+- MCP-native `ToolResult` serialization and metadata-preserving result envelopes
+- `ToolMetadata`, `ResourceMetadata`, and `PromptMetadata` as canonical descriptor models
+- `KaosContext` for session identity, negotiated capabilities, roots, trace/session metadata, and progress callbacks
+- sampling, elicitation, roots, and task data models as transport-facing protocol types
+
+The first `kaos-mcp` slice should treat these areas as explicitly deferred or follow-up work:
+
+- prompt and resource completions remain server-owned behavior until `kaos-core` grows a first-class completion contract
+- request-scoped resource reads are not yet fully hardened through the registry helper path
+- task exposure remains experimental and is not yet owned by `KaosRuntime`
+
+This means the initial server slice should prove tools first, then widen to resources/prompts after the server boundary is validated.
 
 ---
 
@@ -567,7 +587,7 @@ ExecutionResult(BaseModel)
 
 ### 3.5 `kaos_core.protocol` — MCP Protocol Models (NEW)
 
-Models for MCP protocol-level concerns: initialization, capability negotiation, roots, and structured logging. These are data models only — actual protocol handling is in `kaos-mcp-server`.
+Models for MCP protocol-level concerns: initialization, capability negotiation, roots, and structured logging. These are data models only — actual protocol handling is in `kaos-mcp`.
 
 ```
 ClientCapabilities(BaseModel)
@@ -962,13 +982,13 @@ Replace kelvin_core's hand-rolled config loader with `pydantic-settings` `BaseSe
 
 ### 5.5 Agent Primitives as Models, Not Transports
 
-`kaos_core.agent` defines the *data models* for sampling, elicitation, delegation, and tasks. `kaos_core.protocol` defines the *capability negotiation and initialization* models. The actual transport (stdio, streamable HTTP) is handled by `kaos-mcp-server`. This keeps kaos-core transport-agnostic.
+`kaos_core.agent` defines the *data models* for sampling, elicitation, delegation, and tasks. `kaos_core.protocol` defines the *capability negotiation and initialization* models. The actual transport (stdio, streamable HTTP) is handled by `kaos-mcp`. This keeps kaos-core transport-agnostic.
 
-Pydantic-AI interop is achieved by running `kaos-mcp-server` as a stdio subprocess or HTTP service, which pydantic-ai then connects to via `MCPServerStdio` or `MCPServerStreamableHTTP`. kaos-core itself never speaks a wire protocol.
+Pydantic-AI interop is achieved by running `kaos-mcp` as a stdio subprocess or HTTP service, which pydantic-ai then connects to via `MCPServerStdio` or `MCPServerStreamableHTTP`. kaos-core itself never speaks a wire protocol.
 
 ### 5.6 MCP-Native Result Envelopes
 
-Internal result models (`ToolResult`, metadata types) are isomorphic to MCP's wire format — `content`, `structuredContent`, `isError`, `_meta`. Convenience helpers (`.create_success()`, `.execution_time`) are layered on top but excluded from MCP serialization. This avoids a lossy translation step at the `kaos-mcp-server` boundary.
+Internal result models (`ToolResult`, metadata types) are isomorphic to MCP's wire format — `content`, `structuredContent`, `isError`, `_meta`. Convenience helpers (`.create_success()`, `.execution_time`) are layered on top but excluded from MCP serialization. This avoids a lossy translation step at the `kaos-mcp` boundary.
 
 ### 5.7 Python 3.14 Compatibility
 
@@ -997,13 +1017,13 @@ Breaking changes to experimental features do **not** require a major version bum
 | Pydantic | >= 2.11.0 |
 | pydantic-settings | >= 2.8.0 |
 | mcp SDK | >= 1.26.0 (optional) |
-| pydantic-ai | >= 1.70.0 (optional, via `kaos-mcp-server`) |
+| pydantic-ai | >= 1.70.0 (optional, via `kaos-mcp`) |
 | OS | Linux, macOS, Windows |
 
 ---
 
 ## 7. Assumptions
 
-- kaos-core is a **pure library layer**. `kaos-mcp-server` is the actual MCP boundary that serializes protocol messages onto stdio or streamable HTTP.
+- kaos-core is a **pure library layer**. `kaos-mcp` is the actual MCP boundary that serializes protocol messages onto stdio or streamable HTTP.
 - "MCP-native" means protocol-native shapes internally — not "exportable later".
-- The `protocol/` package models capability negotiation but does not perform it — that is `kaos-mcp-server`'s responsibility.
+- The `protocol/` package models capability negotiation but does not perform it — that is `kaos-mcp`'s responsibility.

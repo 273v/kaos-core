@@ -5,9 +5,11 @@ from kaos_core.types.content import (
     ContentType,
     EmbeddedResource,
     ImageContent,
+    ResourceLinkContent,
     TextContent,
 )
 from kaos_core.types.enums import (
+    ArtifactRole,
     ElicitationMode,
     ExecutionState,
     IsolationMode,
@@ -41,6 +43,7 @@ from kaos_core.types.tasks import (
 __all__ = [
     "AssistantMessage",
     "AudioContent",
+    "ArtifactRole",
     "ContentType",
     "CreateTaskResult",
     "Cursor",
@@ -60,6 +63,7 @@ __all__ = [
     "PromptMetadata",
     "RequestId",
     "ResourceAnnotations",
+    "ResourceLinkContent",
     "ResourceMetadata",
     "ResourceType",
     "SamplingMessage",

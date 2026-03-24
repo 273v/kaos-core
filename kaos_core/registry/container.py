@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from contextvars import ContextVar
 
+from kaos_core.artifacts import ArtifactStore
 from kaos_core.config import KaosSettings
 from kaos_core.registry.namespace import NamespaceManager
 from kaos_core.registry.prompt_registry import PromptRegistry
@@ -20,6 +21,7 @@ class KaosRuntime:
         self.resources = ResourceRegistry()
         self.prompts = PromptRegistry()
         self.vfs = VirtualFileSystem()
+        self.artifacts = ArtifactStore(self.vfs)
 
     @classmethod
     def default(cls) -> KaosRuntime:

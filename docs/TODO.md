@@ -9,8 +9,13 @@
 - [x] Core v0.1 package scaffolding, runtime layers, execution engine, agent primitives, VFS, docs, CI, and benchmark harness are implemented.
 - [x] Validation currently passes with `ruff check .`, `mypy` on Python 3.13 and 3.14, and `pytest -q` on Python 3.13 and 3.14.
 - [x] Coverage target is now met on core paths: full-suite coverage is 91% on both Python 3.13 and Python 3.14.
+- [x] The sibling MCP server/runtime module is `kaos-mcp`; references to `kaos-mcp-server` should be treated as stale wording.
+- [x] `kaos-core` now has an explicit interop contract for `kaos-mcp`: runtime registries, metadata models, MCP-native tool results, and context capability/roots/progress hooks are the initial stable boundary.
 - [ ] Remaining hardening is mostly branch-depth, not missing features: prompt registry/template edges, metadata/parameter edge cases, and a few negative elicitation/VFS branches still have lower coverage than the rest of the package.
-- [ ] This tracker still reflects the original scaffold plan more than the current state. Future edits should convert it into a completion-plus-hardening backlog instead of a file-by-file build checklist.
+- [ ] Request-scoped resource reads still need contract hardening before `kaos-mcp` can safely widen beyond the initial tool-only server slice.
+- [ ] Prompt/resource completions remain intentionally server-owned behavior for now; `kaos-core` does not yet define first-class completion providers or completion metadata.
+- [ ] Experimental tasks remain deferred at the server boundary until there is a clearer `KaosRuntime` ownership model.
+- [ ] This tracker still reflects the original scaffold plan more than the current state. Future edits should continue converting it into a completion-plus-hardening backlog instead of a file-by-file build checklist.
 
 ---
 

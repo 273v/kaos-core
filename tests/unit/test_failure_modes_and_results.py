@@ -31,7 +31,7 @@ from kaos_core import (
     kaos_tool,
 )
 from kaos_core.execution.models import ExecutionResult
-from kaos_core.types.content import EmbeddedResource
+from kaos_core.types.content import EmbeddedResource, ResourceLinkContent
 from kaos_core.types.enums import ExecutionState
 from kaos_core.types.results import (
     ErrorInfo,
@@ -427,9 +427,10 @@ async def test_result_helpers_and_progress_flows() -> None:
             "details": {"field": "value"},
         },
     }
-    embedded = resource_link.content[0]
-    assert isinstance(embedded, EmbeddedResource)
-    assert embedded.resource["uri"] == "kaos://kaos-core/docs/readme"
+    linked = resource_link.content[0]
+    assert not isinstance(linked, EmbeddedResource)
+    assert isinstance(linked, ResourceLinkContent)
+    assert linked.uri == "kaos://kaos-core/docs/readme"
     assert ToolResult.create_text("plain").to_mcp_dict()["content"][0]["text"] == "plain"
 
     async def iterate_chunks() -> AsyncIterator[StreamingChunk]:

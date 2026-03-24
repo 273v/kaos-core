@@ -31,4 +31,16 @@ class EmbeddedResource(KaosModel):
     resource: dict[str, Any]
 
 
-type ContentType = TextContent | ImageContent | AudioContent | EmbeddedResource
+class ResourceLinkContent(KaosModel):
+    type: Literal["resource_link"] = "resource_link"
+    name: str
+    uri: str
+    title: str | None = None
+    description: str | None = None
+    mimeType: str | None = None
+    size: int | None = None
+
+
+type ContentType = (
+    TextContent | ImageContent | AudioContent | EmbeddedResource | ResourceLinkContent
+)

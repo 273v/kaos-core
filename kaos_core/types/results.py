@@ -7,7 +7,12 @@ from typing import Any, cast
 from pydantic import Field
 
 from kaos_core.types.aliases import Cursor
-from kaos_core.types.content import ContentType, EmbeddedResource, KaosModel, TextContent
+from kaos_core.types.content import (
+    ContentType,
+    KaosModel,
+    ResourceLinkContent,
+    TextContent,
+)
 
 
 class ErrorInfo(KaosModel):
@@ -68,16 +73,44 @@ class ToolResult(KaosModel):
     def create_resource_link(
         cls,
         uri: str,
-        name: str | None = None,
+        name: str,
         mime_type: str | None = None,
         **kwargs: Any,
     ) -> ToolResult:
-        resource: dict[str, Any] = {"uri": uri}
-        if name:
-            resource["name"] = name
-        if mime_type:
-            resource["mimeType"] = mime_type
-        return cls(content=[EmbeddedResource(resource=resource)], **kwargs)
+        return cls(
+            content=[
+                ResourceLinkContent(
+                    name=name,
+                    uri=uri,
+                    mimeType=mime_type,
+                )
+            ],
+            **kwargs,
+        )
+
+    @classmethod
+    def create_summary_with_resource(
+        cls,
+        summary: str,
+        *,
+        uri: str,
+        name: str | None = None,
+        mime_type: str | None = None,
+        structured_content: dict[str, Any] | None = None,
+        **kwargs: Any,
+    ) -> ToolResult:
+        return cls(
+            content=[
+                TextContent(text=summary),
+                ResourceLinkContent(
+                    name=name or uri,
+                    uri=uri,
+                    mimeType=mime_type,
+                ),
+            ],
+            structuredContent=structured_content,
+            **kwargs,
+        )
 
     def to_mcp_dict(self) -> dict[str, Any]:
         return self.model_dump(by_alias=True, exclude_none=True)

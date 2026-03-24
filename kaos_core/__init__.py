@@ -12,6 +12,7 @@ from kaos_core.agent import (
     TaskManager,
     UsageStats,
 )
+from kaos_core.artifacts import ArtifactManifest, ArtifactRef, ArtifactStore
 from kaos_core.base import KaosContext, KaosPrompt, KaosResource, KaosTool
 from kaos_core.config import CredentialStore, KaosSettings, OAuthToken, ProfileManager
 from kaos_core.decorators import FunctionTool, kaos_tool
@@ -61,6 +62,8 @@ from kaos_core.registry import (
 )
 from kaos_core.types import (
     ContentType,
+    ArtifactRole,
+    EmbeddedResource,
     ElicitationMode,
     ImageContent,
     IsolationMode,
@@ -68,6 +71,7 @@ from kaos_core.types import (
     ParameterSchema,
     PromptMetadata,
     ResourceAnnotations,
+    ResourceLinkContent,
     ResourceMetadata,
     ResourceType,
     StorageBackend,
@@ -87,15 +91,30 @@ from kaos_core.utils import (
     ToolInspector,
     URITemplate,
 )
-from kaos_core.vfs import VFSConfig, VFSFile, VFSMetadata, VFSPath, VirtualFileSystem
+from kaos_core.vfs import (
+    VFSConfig,
+    VFSFile,
+    VFSListPage,
+    VFSMetadata,
+    VFSPath,
+    VFSWalkEntry,
+    VFSWalkOptions,
+    VFSWalkResult,
+    VirtualFileSystem,
+)
 
 __all__ = [
     "ClientCapabilities",
     "ContentType",
     "CredentialStore",
+    "ArtifactManifest",
+    "ArtifactRef",
+    "ArtifactRole",
+    "ArtifactStore",
     "DelegationRequest",
     "DelegationResult",
     "DocumentationGenerator",
+    "EmbeddedResource",
     "ElicitationCompletionNotification",
     "ElicitationError",
     "ElicitationMode",
@@ -135,6 +154,7 @@ __all__ = [
     "PromptTemplate",
     "RegistryError",
     "ResourceAnnotations",
+    "ResourceLinkContent",
     "ResourceError",
     "ResourceMetadata",
     "ResourceRegistry",
@@ -168,8 +188,12 @@ __all__ = [
     "UsageStats",
     "VFSConfig",
     "VFSFile",
+    "VFSListPage",
     "VFSMetadata",
     "VFSPath",
+    "VFSWalkEntry",
+    "VFSWalkOptions",
+    "VFSWalkResult",
     "ValidationError",
     "VirtualFileSystem",
     "WorkflowDefinition",

@@ -32,6 +32,11 @@ class ResourceType(StrEnum):
     EXTRACTION = "extraction"
 
 
+class ArtifactRole(StrEnum):
+    SUMMARY = "summary"
+    BODY = "body"
+
+
 class ExecutionState(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
