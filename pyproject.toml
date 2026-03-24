@@ -1,0 +1,133 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kaos-core"
+dynamic = ["version"]
+description = "Core protocol, runtime, and execution infrastructure for KAOS modules"
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "LicenseRef-Proprietary" }
+authors = [
+  { name = "273 Ventures LLC", email = "it@273ventures.com" },
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+  "Typing :: Typed",
+]
+dependencies = [
+  "click>=8.1.8",
+  "cryptography>=44.0.2",
+  "psutil>=6.1.1",
+  "pydantic>=2.11.0",
+  "pydantic-settings>=2.8.1",
+]
+
+[project.optional-dependencies]
+mcp = [
+  "mcp>=1.26.0",
+]
+pydantic-ai = [
+  "pydantic-ai-slim[mcp]>=1.70.0",
+]
+
+[dependency-groups]
+dev = [
+  "mypy>=1.15.0",
+  "pytest>=8.3.5",
+  "pytest-asyncio>=0.26.0",
+  "pytest-benchmark>=5.1.0",
+  "pytest-cov>=6.0.0",
+  "ruff>=0.11.0",
+  "ty>=0.0.1a17",
+]
+
+[project.urls]
+Homepage = "https://273ventures.com"
+Documentation = "https://docs.273ventures.com"
+Repository = "https://github.com/273v/kaos-modules"
+
+[tool.hatch.version]
+path = "kaos_core/_version.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/kaos_core",
+  "/README.md",
+  "/CLAUDE.md",
+  "/docs",
+  "/tests",
+  "/benchmarks",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["kaos_core"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+addopts = [
+  "-ra",
+  "--strict-markers",
+  "--strict-config",
+  "--cov=kaos_core",
+  "--cov-branch",
+  "--cov-report=term-missing",
+]
+markers = [
+  "benchmark: performance-sensitive checks",
+  "integration: end-to-end behavior checks",
+  "unit: focused unit checks",
+]
+
+[tool.coverage.run]
+source = ["kaos_core"]
+branch = true
+omit = [
+  "*/tests/*",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "@abstractmethod",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "C4", "PTH"]
+ignore = ["B008", "E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["kaos_core"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+show_error_codes = true
+packages = ["kaos_core", "tests"]
+
+[tool.uv]
+package = true

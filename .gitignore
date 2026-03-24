@@ -1,0 +1,11 @@
+.coverage
+.kaos-vfs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.venv/
+__pycache__/
+*.pyc
+dist/
+*.egg-info/
+.benchmarks/
