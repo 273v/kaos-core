@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from typing import Any
+from datetime import UTC, datetime
 
 from pydantic import Field
 
 from kaos_core.types.content import KaosModel
-from kaos_core.types.enums import ArtifactRole
+from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
 
 
 class ArtifactRef(KaosModel):
@@ -33,7 +34,8 @@ class ArtifactManifest(KaosModel):
     modified_at: str | None = None
     path: str
     provenance: dict[str, Any] = Field(default_factory=dict)
-    retention_policy: str | None = None
+    retention_policy: ArtifactRetentionPolicy | None = ArtifactRetentionPolicy.SESSION
+    expires_at: str | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
 
     @property
@@ -43,6 +45,18 @@ class ArtifactManifest(KaosModel):
     @property
     def body_uri(self) -> str:
         return f"kaos://artifacts/{self.artifact_id}/body"
+
+    def chunk_uri(self, chunk_index: int) -> str:
+        return f"kaos://artifacts/{self.artifact_id}/chunk/{chunk_index}"
+
+    def range_uri(self, start: int, length: int) -> str:
+        return f"kaos://artifacts/{self.artifact_id}/range/{start}/{length}"
+
+    def is_expired(self, *, now: datetime | None = None) -> bool:
+        if self.expires_at is None:
+            return False
+        current_time = now or datetime.now(tz=UTC)
+        return datetime.fromisoformat(self.expires_at) <= current_time
 
     def to_ref(self) -> ArtifactRef:
         return ArtifactRef(

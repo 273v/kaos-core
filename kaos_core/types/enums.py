@@ -37,6 +37,12 @@ class ArtifactRole(StrEnum):
     BODY = "body"
 
 
+class ArtifactRetentionPolicy(StrEnum):
+    SESSION = "session"
+    PERSISTENT = "persistent"
+    TEMPORARY = "temporary"
+
+
 class ExecutionState(StrEnum):
     PENDING = "pending"
     RUNNING = "running"

@@ -138,6 +138,9 @@ class DiskBackend:
             parent.mkdir(parents=True, exist_ok=True)
         return candidate
 
+    def resolve_path(self, path: str, *, create_parents: bool = False) -> Path:
+        return self._resolve(path, create_parents=create_parents)
+
     async def read(self, path: str) -> bytes:
         return await asyncio.to_thread(self._resolve(path).read_bytes)
 

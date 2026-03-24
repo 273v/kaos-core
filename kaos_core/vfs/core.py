@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import builtins
 from fnmatch import fnmatch
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 from kaos_core.types.enums import IsolationMode, StorageBackend
@@ -35,6 +36,12 @@ class VirtualFileSystem:
         self._memory = MemoryBackend()
         self._disk = DiskBackend(self.config.disk_base_path)
         self._s3 = S3Backend()
+
+    def _disk_backend(self) -> DiskBackend:
+        configured_base_path = self.config.disk_base_path.resolve()
+        if self._disk.base_path != configured_base_path:
+            self._disk = DiskBackend(self.config.disk_base_path)
+        return self._disk
 
     def get_path(self, path: str, context_id: str | None = None) -> VFSPath:
         from kaos_core.vfs.path import VFSPath
@@ -79,10 +86,16 @@ class VirtualFileSystem:
 
     def _backend(self) -> _BackendProtocol:
         if self.config.default_backend is StorageBackend.DISK:
-            return self._disk
+            return self._disk_backend()
         if self.config.default_backend is StorageBackend.S3:
             return self._s3
         return self._memory
+
+    def resolve_disk_path(self, path: str, context_id: str | None = None) -> Path | None:
+        backend = self._backend()
+        if not isinstance(backend, DiskBackend):
+            return None
+        return backend.resolve_path(self._scope(path, context_id))
 
     async def read(self, path: str, context_id: str | None = None) -> bytes:
         return await self._backend().read(self._scope(path, context_id))
@@ -200,6 +213,14 @@ class VirtualFileSystem:
             "mime_type": metadata.mime_type,
         }
 
-    async def cleanup_context(self, context_id: str) -> None:
+    async def cleanup_context(
+        self,
+        context_id: str,
+        *,
+        preserve_paths: set[str] | None = None,
+    ) -> None:
+        preserved = {self.normalize_path(path) for path in preserve_paths or set()}
         for path in await self.list("", context_id=context_id):
+            if self._strip_scope(path, context_id) in preserved:
+                continue
             await self._backend().delete(path)

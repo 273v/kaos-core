@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
 import pytest
 
 from kaos_core import (
+    ArtifactRetentionPolicy,
     ArtifactRole,
     KaosContext,
     KaosResource,
     KaosRuntime,
+    KaosSettings,
+    ResourceError,
     ResourceMetadata,
     ResourceType,
     ToolCapability,
@@ -312,3 +317,210 @@ async def test_vfs_stat_ranges_pages_and_artifacts(tmp_path: Path) -> None:
     assert runtime.artifacts.resolve(manifest.manifest_uri).artifact_id == manifest.artifact_id
     assert await runtime.artifacts.read_body(manifest.artifact_id, start=2, length=3) == b"cde"
     assert '"name": "report"' in str(await context.read_resource(manifest.manifest_uri))
+
+
+async def test_artifacts_support_checksums_binary_payloads_and_missing_files(
+    tmp_path: Path,
+) -> None:
+    runtime = KaosRuntime()
+    runtime.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    runtime.artifacts = runtime.artifacts.__class__(runtime.vfs)
+
+    context = KaosContext.create(session_id="binary-session", runtime=runtime)
+    binary_payload = b"\x00\x01\x02ABC\xff"
+    binary_path = context.get_vfs_path("artifacts/payload.bin")
+    await binary_path.write_bytes(binary_payload)
+
+    manifest = await runtime.artifacts.create_from_path(
+        "artifacts/payload.bin",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="payload",
+        role=ArtifactRole.BODY,
+        mime_type="application/octet-stream",
+        checksum=True,
+    )
+    assert manifest.checksum == hashlib.sha256(binary_payload).hexdigest()
+    assert await runtime.artifacts.read_body(manifest.artifact_id) == binary_payload
+    assert await context.read_resource(manifest.body_uri) == binary_payload
+
+    with pytest.raises(ResourceError, match="Unknown artifact"):
+        runtime.artifacts.resolve("kaos://artifacts/missing/body")
+    with pytest.raises(ResourceError, match="Unknown artifact"):
+        await context.read_resource("kaos://artifacts/missing/manifest")
+
+    await binary_path.unlink()
+    with pytest.raises(ResourceError, match="backing file is missing"):
+        await runtime.artifacts.read_body(manifest.artifact_id)
+
+
+async def test_large_artifact_range_reads_do_not_require_full_body_load(tmp_path: Path) -> None:
+    runtime = KaosRuntime()
+    runtime.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    runtime.artifacts = runtime.artifacts.__class__(runtime.vfs)
+
+    context = KaosContext.create(session_id="large-session", runtime=runtime)
+    large_payload = ("0123456789abcdef" * 65536).encode("utf-8")
+    large_path = context.get_vfs_path("artifacts/large.txt")
+    await large_path.write_bytes(large_payload)
+
+    manifest = await runtime.artifacts.create_from_path(
+        "artifacts/large.txt",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="large-text",
+        role=ArtifactRole.BODY,
+        mime_type="text/plain",
+    )
+    assert manifest.size == len(large_payload)
+    assert (
+        await runtime.artifacts.read_body(manifest.artifact_id, start=128, length=32)
+        == large_payload[128:160]
+    )
+    preview = await runtime.vfs.probe_text(
+        "artifacts/large.txt", context_id=context.session_id, max_bytes=64
+    )
+    assert preview["truncated"] is True
+    assert len(str(preview["preview"])) == 64
+
+
+async def test_artifact_persistence_retention_and_cleanup(tmp_path: Path) -> None:
+    settings = KaosSettings(
+        artifact_inline_read_max_bytes=64,
+        artifact_chunk_size_bytes=16,
+        artifact_temporary_ttl_seconds=30,
+    )
+    runtime = KaosRuntime(config=settings)
+    runtime.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    runtime.artifacts = runtime.artifacts.__class__(
+        runtime.vfs,
+        manifest_context_id=settings.artifact_manifest_context_id,
+        manifest_prefix=settings.artifact_manifest_prefix,
+        max_inline_read_bytes=settings.artifact_inline_read_max_bytes,
+        default_chunk_size=settings.artifact_chunk_size_bytes,
+        temporary_ttl_seconds=settings.artifact_temporary_ttl_seconds,
+    )
+
+    context = KaosContext.create(session_id="persist-session", runtime=runtime)
+    await context.get_vfs_path("artifacts/session.txt").write_text("session")
+    await context.get_vfs_path("artifacts/persistent.txt").write_text("persistent")
+    await context.get_vfs_path("artifacts/temp.txt").write_text("temp")
+
+    session_artifact = await runtime.artifacts.create_from_path(
+        "artifacts/session.txt",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="session",
+        retention_policy=ArtifactRetentionPolicy.SESSION,
+    )
+    persistent_artifact = await runtime.artifacts.create_from_path(
+        "artifacts/persistent.txt",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="persistent",
+        retention_policy=ArtifactRetentionPolicy.PERSISTENT,
+    )
+    temporary_artifact = await runtime.artifacts.create_from_path(
+        "artifacts/temp.txt",
+        context_id=context.session_id,
+        session_id=context.session_id,
+        name="temp",
+        retention_policy=ArtifactRetentionPolicy.TEMPORARY,
+        ttl_seconds=5,
+    )
+
+    reloaded = KaosRuntime(config=settings)
+    reloaded.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    reloaded.artifacts = reloaded.artifacts.__class__(
+        reloaded.vfs,
+        manifest_context_id=settings.artifact_manifest_context_id,
+        manifest_prefix=settings.artifact_manifest_prefix,
+        max_inline_read_bytes=settings.artifact_inline_read_max_bytes,
+        default_chunk_size=settings.artifact_chunk_size_bytes,
+        temporary_ttl_seconds=settings.artifact_temporary_ttl_seconds,
+    )
+
+    assert reloaded.artifacts.resolve(persistent_artifact.manifest_uri).artifact_id == (
+        persistent_artifact.artifact_id
+    )
+    assert await reloaded.artifacts.read_uri(persistent_artifact.body_uri) == "persistent"
+
+    expired = await runtime.artifacts.cleanup_expired(
+        now=datetime.now(tz=UTC) + timedelta(seconds=10)
+    )
+    assert expired == 1
+    with pytest.raises(ResourceError, match="Unknown artifact"):
+        runtime.artifacts.resolve(temporary_artifact.artifact_id)
+
+    await context.cleanup()
+
+    assert await runtime.vfs.exists("artifacts/session.txt", context_id=context.session_id) is False
+    assert (
+        await runtime.vfs.exists("artifacts/persistent.txt", context_id=context.session_id) is True
+    )
+    with pytest.raises(ResourceError, match="Unknown artifact"):
+        runtime.artifacts.resolve(session_artifact.artifact_id)
+    assert runtime.artifacts.resolve(persistent_artifact.artifact_id).artifact_id == (
+        persistent_artifact.artifact_id
+    )
+
+
+async def test_artifact_roots_and_inline_limits_are_enforced(tmp_path: Path) -> None:
+    settings = KaosSettings(artifact_inline_read_max_bytes=16, artifact_chunk_size_bytes=8)
+    runtime = KaosRuntime(config=settings)
+    runtime.vfs = VirtualFileSystem(
+        VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
+    )
+    runtime.artifacts = runtime.artifacts.__class__(
+        runtime.vfs,
+        manifest_context_id=settings.artifact_manifest_context_id,
+        manifest_prefix=settings.artifact_manifest_prefix,
+        max_inline_read_bytes=settings.artifact_inline_read_max_bytes,
+        default_chunk_size=settings.artifact_chunk_size_bytes,
+        temporary_ttl_seconds=settings.artifact_temporary_ttl_seconds,
+    )
+
+    session_id = "rooted-session"
+    payload = ("0123456789abcdef" * 8).encode("utf-8")
+    allowed_root = Root(uri=(tmp_path / "vfs" / session_id).resolve().as_uri(), name="allowed")
+    blocked_root = Root(uri=(tmp_path / "blocked").resolve().as_uri(), name="blocked")
+
+    allowed_context = KaosContext.create(
+        session_id=session_id,
+        runtime=runtime,
+        roots=[allowed_root],
+    )
+    blocked_context = KaosContext.create(
+        session_id=session_id,
+        runtime=runtime,
+        roots=[blocked_root],
+    )
+    await allowed_context.get_vfs_path("artifacts/large.txt").write_bytes(payload)
+    manifest = await runtime.artifacts.create_from_path(
+        "artifacts/large.txt",
+        context_id=session_id,
+        session_id=session_id,
+        name="large",
+        mime_type="text/plain",
+        retention_policy=ArtifactRetentionPolicy.PERSISTENT,
+    )
+
+    with pytest.raises(ResourceError, match="inline read limit"):
+        await allowed_context.read_resource(manifest.body_uri)
+    with pytest.raises(ResourceError, match="roots policy"):
+        await blocked_context.read_resource(manifest.manifest_uri)
+
+    assert await runtime.artifacts.read_chunk(
+        manifest.artifact_id,
+        chunk_index=1,
+        chunk_size=8,
+        roots=allowed_context.roots,
+    ) == payload[8:16]

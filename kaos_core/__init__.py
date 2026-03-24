@@ -62,6 +62,7 @@ from kaos_core.registry import (
 )
 from kaos_core.types import (
     ContentType,
+    ArtifactRetentionPolicy,
     ArtifactRole,
     EmbeddedResource,
     ElicitationMode,
@@ -109,6 +110,7 @@ __all__ = [
     "CredentialStore",
     "ArtifactManifest",
     "ArtifactRef",
+    "ArtifactRetentionPolicy",
     "ArtifactRole",
     "ArtifactStore",
     "DelegationRequest",

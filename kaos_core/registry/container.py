@@ -21,7 +21,14 @@ class KaosRuntime:
         self.resources = ResourceRegistry()
         self.prompts = PromptRegistry()
         self.vfs = VirtualFileSystem()
-        self.artifacts = ArtifactStore(self.vfs)
+        self.artifacts = ArtifactStore(
+            self.vfs,
+            manifest_context_id=self.settings.artifact_manifest_context_id,
+            manifest_prefix=self.settings.artifact_manifest_prefix,
+            max_inline_read_bytes=self.settings.artifact_inline_read_max_bytes,
+            default_chunk_size=self.settings.artifact_chunk_size_bytes,
+            temporary_ttl_seconds=self.settings.artifact_temporary_ttl_seconds,
+        )
 
     @classmethod
     def default(cls) -> KaosRuntime:

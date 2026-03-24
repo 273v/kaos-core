@@ -18,6 +18,11 @@ class KaosSettings(BaseSettings):
     retry_limit: int = 2
     max_concurrent_requests: int = 8
     task_management_enabled: bool = False
+    artifact_manifest_context_id: str = "__kaos_artifacts__"
+    artifact_manifest_prefix: str = "manifests"
+    artifact_inline_read_max_bytes: int = Field(default=262_144, ge=1)
+    artifact_chunk_size_bytes: int = Field(default=65_536, ge=1)
+    artifact_temporary_ttl_seconds: int = Field(default=3_600, ge=1)
     profile_name: str = Field(default="default", exclude=True)
 
     model_config = SettingsConfigDict(

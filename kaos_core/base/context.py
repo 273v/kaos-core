@@ -138,7 +138,7 @@ class KaosContext:
             return await self.runtime.resources.get_resource(uri)
         except RegistryError:
             if hasattr(self.runtime, "artifacts"):
-                return await self.runtime.artifacts.read_uri(uri)
+                return await self.runtime.artifacts.read_uri(uri, roots=self.roots)
             raise
 
     def get_vfs_path(self, path: str) -> Any:
@@ -160,5 +160,11 @@ class KaosContext:
         )
 
     async def cleanup(self) -> None:
-        if self._vfs is not None:
-            await self._vfs.cleanup_context(self.session_id)
+        preserved_paths: set[str] = set()
+        if self.runtime is not None and hasattr(self.runtime, "artifacts"):
+            await self.runtime.artifacts.cleanup_session(self.session_id)
+            preserved_paths = self.runtime.artifacts.list_retained_paths(
+                context_id=self.session_id
+            )
+        if self._vfs is not None or self.runtime is not None:
+            await self.vfs.cleanup_context(self.session_id, preserve_paths=preserved_paths)
