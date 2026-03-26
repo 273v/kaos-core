@@ -40,7 +40,6 @@ pydantic-ai = [
 
 [dependency-groups]
 dev = [
-  "mypy>=1.15.0",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-benchmark>=5.1.0",
@@ -119,15 +118,8 @@ ignore = ["B008", "E501"]
 [tool.ruff.lint.isort]
 known-first-party = ["kaos_core"]
 
-[tool.mypy]
-python_version = "3.13"
-strict = true
-warn_unused_configs = true
-warn_redundant_casts = true
-warn_unused_ignores = true
-warn_return_any = true
-show_error_codes = true
-packages = ["kaos_core", "tests"]
+[tool.ty.src]
+include = ["kaos_core", "tests"]
 
 [tool.uv]
 package = true
