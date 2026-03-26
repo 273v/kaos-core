@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kaos_core.base.resource import KaosResource
 from kaos_core.exceptions import RegistryError
 from kaos_core.types.enums import ResourceType
 from kaos_core.types.metadata import ResourceMetadata
+
+if TYPE_CHECKING:
+    from kaos_core.base.context import KaosContext
 
 
 class ResourceRegistry:
@@ -27,14 +30,19 @@ class ResourceRegistry:
         for template in templates or []:
             self._templates[template] = target_uri
 
-    async def get_resource(self, uri: str, use_cache: bool = True) -> Any:
+    async def get_resource(
+        self,
+        uri: str,
+        use_cache: bool = True,
+        context: KaosContext | None = None,
+    ) -> Any:
         if use_cache and uri in self._cache:
             return self._cache[uri]
         try:
             resource = self._resources[uri]
         except KeyError as exc:
             raise RegistryError("Unknown resource", uri=uri) from exc
-        value = await resource.read()
+        value = await resource.read(context=context)
         if use_cache:
             self._cache[uri] = value
         return value

@@ -26,7 +26,6 @@ class CreateTaskResult(KaosModel):
     meta: dict[str, Any] | None = Field(default=None, alias="_meta")
 
 
-
 class TaskStatus(KaosModel):
     task_id: str
     state: TaskState

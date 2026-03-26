@@ -135,7 +135,7 @@ class KaosContext:
             msg = "Context is not attached to a runtime"
             raise RuntimeError(msg)
         try:
-            return await self.runtime.resources.get_resource(uri)
+            return await self.runtime.resources.get_resource(uri, context=self)
         except RegistryError:
             if hasattr(self.runtime, "artifacts"):
                 return await self.runtime.artifacts.read_uri(uri, roots=self.roots)
