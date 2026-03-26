@@ -25,9 +25,6 @@ class CreateTaskResult(KaosModel):
     task_id: str
     meta: dict[str, Any] | None = Field(default=None, alias="_meta")
 
-    @property
-    def _meta(self) -> dict[str, Any] | None:
-        return self.meta
 
 
 class TaskStatus(KaosModel):

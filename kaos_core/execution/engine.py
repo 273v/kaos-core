@@ -37,7 +37,7 @@ class ExecutionEngine:
         tool = self.runtime.tools.get_tool(tool_name)
         if tool is None:
             raise ExecutionError("Tool not found", tool_name=tool_name)
-        cache_key = self._cache_key(tool_name, inputs)
+        cache_key = self._cache_key(tool_name, inputs, context=context)
         if self.config.enable_caching and cache_key in self._cache:
             return ExecutionResult(
                 execution_id=execution_id or str(uuid4()),
@@ -123,9 +123,15 @@ class ExecutionEngine:
         if tool_name is None:
             self._cache.clear()
             return
-        prefix = f"{tool_name}:"
-        for key in [cache_key for cache_key in self._cache if cache_key.startswith(prefix)]:
+        marker = f":{tool_name}:"
+        for key in [cache_key for cache_key in self._cache if marker in cache_key]:
             self._cache.pop(key, None)
 
-    def _cache_key(self, tool_name: str, inputs: dict[str, Any]) -> str:
-        return f"{tool_name}:{json.dumps(inputs, sort_keys=True, default=str)}"
+    def _cache_key(
+        self,
+        tool_name: str,
+        inputs: dict[str, Any],
+        context: KaosContext | None = None,
+    ) -> str:
+        session_id = context.session_id if context is not None else ""
+        return f"{session_id}:{tool_name}:{json.dumps(inputs, sort_keys=True, default=str)}"

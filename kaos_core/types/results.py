@@ -32,10 +32,6 @@ class ToolResult(KaosModel):
     progress: float | None = Field(default=None, exclude=True)
     next_cursor: Cursor | None = Field(default=None, exclude=True)
 
-    @property
-    def _meta(self) -> dict[str, Any] | None:
-        return self.meta
-
     @classmethod
     def create_success(
         cls,

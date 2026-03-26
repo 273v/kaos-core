@@ -419,7 +419,7 @@ async def test_result_helpers_and_progress_flows() -> None:
     assert success_structured.structuredContent == {"value": 4}
     assert success_content.content[0] == TextContent(text="named")
     assert error.isError is True
-    assert error._meta == {
+    assert error.meta == {
         "request_id": "req-1",
         "error": {
             "code": "bad_request",
