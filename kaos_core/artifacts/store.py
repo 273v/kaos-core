@@ -100,7 +100,9 @@ class ArtifactStore:
         try:
             manifest = ArtifactManifest.model_validate_json(payload)
         except Exception as exc:
-            raise ResourceError("Artifact manifest record is invalid", artifact_id=artifact_id) from exc
+            raise ResourceError(
+                "Artifact manifest record is invalid", artifact_id=artifact_id
+            ) from exc
         return self._index_manifest(manifest)
 
     def _artifact_id_from_identifier(self, uri_or_id: str) -> str:
@@ -137,7 +139,9 @@ class ArtifactStore:
         if resolved_path is None:
             return
 
-        root_paths = [root_path for root in roots if (root_path := self._root_path(root)) is not None]
+        root_paths = [
+            root_path for root in roots if (root_path := self._root_path(root)) is not None
+        ]
         if not root_paths:
             raise ResourceError(
                 "Artifact access denied by roots policy",
@@ -260,7 +264,7 @@ class ArtifactStore:
             raise ResourceError("Unknown artifact", **details) from exc
         return self.get(artifact_id)
 
-    def list(
+    def list_artifacts(
         self,
         *,
         session_id: str | None = None,
@@ -278,7 +282,9 @@ class ArtifactStore:
 
     def list_retained_paths(self, *, context_id: str) -> set[str]:
         return {
-            manifest.path for manifest in self._artifacts.values() if manifest.context_id == context_id
+            manifest.path
+            for manifest in self._artifacts.values()
+            if manifest.context_id == context_id
         }
 
     async def read_body(
@@ -297,15 +303,14 @@ class ArtifactStore:
             raise ResourceError("Artifact read start must be non-negative", artifact_id=artifact_id)
         if length is not None and length <= 0:
             raise ResourceError("Artifact read length must be positive", artifact_id=artifact_id)
-        if start == 0 and length is None and max_bytes is not None:
-            if manifest.size > max_bytes:
-                raise ResourceError(
-                    "Artifact exceeds inline read limit",
-                    artifact_id=artifact_id,
-                    size=manifest.size,
-                    max_bytes=max_bytes,
-                    chunk_uri=manifest.chunk_uri(0),
-                )
+        if start == 0 and length is None and max_bytes is not None and manifest.size > max_bytes:
+            raise ResourceError(
+                "Artifact exceeds inline read limit",
+                artifact_id=artifact_id,
+                size=manifest.size,
+                max_bytes=max_bytes,
+                chunk_uri=manifest.chunk_uri(0),
+            )
 
         stat = await self._vfs.stat(manifest.path, context_id=manifest.context_id)
         if not stat.exists or stat.kind != "file":
@@ -332,7 +337,9 @@ class ArtifactStore:
         manifest = await self._resolve_async(artifact_id)
         resolved_chunk_size = chunk_size or self._default_chunk_size
         if chunk_index < 0:
-            raise ResourceError("Artifact chunk index must be non-negative", artifact_id=artifact_id)
+            raise ResourceError(
+                "Artifact chunk index must be non-negative", artifact_id=artifact_id
+            )
         if resolved_chunk_size <= 0:
             raise ResourceError("Artifact chunk size must be positive", artifact_id=artifact_id)
 
@@ -382,7 +389,7 @@ class ArtifactStore:
 
     async def cleanup_session(self, session_id: str) -> int:
         deleted = 0
-        for manifest in list(self.list(session_id=session_id)):
+        for manifest in list(self.list_artifacts(session_id=session_id)):
             if manifest.retention_policy is ArtifactRetentionPolicy.PERSISTENT:
                 continue
             await self.delete(manifest.artifact_id)

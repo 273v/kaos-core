@@ -4,11 +4,11 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 from uuid import uuid4
 
+from kaos_core.exceptions import RegistryError
 from kaos_core.logging import ContextFilter, get_logger
 from kaos_core.protocol.capabilities import ClientCapabilities
 from kaos_core.protocol.initialize import InitializeRequest, InitializeResult
 from kaos_core.protocol.roots import Root
-from kaos_core.exceptions import RegistryError
 
 ProgressCallback = Callable[[float, float | None, str | None], Awaitable[None] | None]
 
@@ -163,8 +163,6 @@ class KaosContext:
         preserved_paths: set[str] = set()
         if self.runtime is not None and hasattr(self.runtime, "artifacts"):
             await self.runtime.artifacts.cleanup_session(self.session_id)
-            preserved_paths = self.runtime.artifacts.list_retained_paths(
-                context_id=self.session_id
-            )
+            preserved_paths = self.runtime.artifacts.list_retained_paths(context_id=self.session_id)
         if self._vfs is not None or self.runtime is not None:
             await self.vfs.cleanup_context(self.session_id, preserve_paths=preserved_paths)

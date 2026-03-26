@@ -9,8 +9,8 @@ from kaos_core.types.content import (
     TextContent,
 )
 from kaos_core.types.enums import (
-    ArtifactRole,
     ArtifactRetentionPolicy,
+    ArtifactRole,
     ElicitationMode,
     ExecutionState,
     IsolationMode,
@@ -42,10 +42,10 @@ from kaos_core.types.tasks import (
 )
 
 __all__ = [
+    "ArtifactRetentionPolicy",
+    "ArtifactRole",
     "AssistantMessage",
     "AudioContent",
-    "ArtifactRole",
-    "ArtifactRetentionPolicy",
     "ContentType",
     "CreateTaskResult",
     "Cursor",

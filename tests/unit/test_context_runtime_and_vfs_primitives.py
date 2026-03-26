@@ -518,9 +518,12 @@ async def test_artifact_roots_and_inline_limits_are_enforced(tmp_path: Path) -> 
     with pytest.raises(ResourceError, match="roots policy"):
         await blocked_context.read_resource(manifest.manifest_uri)
 
-    assert await runtime.artifacts.read_chunk(
-        manifest.artifact_id,
-        chunk_index=1,
-        chunk_size=8,
-        roots=allowed_context.roots,
-    ) == payload[8:16]
+    assert (
+        await runtime.artifacts.read_chunk(
+            manifest.artifact_id,
+            chunk_index=1,
+            chunk_size=8,
+            roots=allowed_context.roots,
+        )
+        == payload[8:16]
+    )
