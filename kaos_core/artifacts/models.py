@@ -1,12 +1,21 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import Field
 
-from kaos_core.types.content import KaosModel
+from kaos_core.types.content import KaosModel, ResourceLinkContent
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
+
+if TYPE_CHECKING:
+    from kaos_core.types.results import ToolResult
+
+# ---------------------------------------------------------------------------
+# Inline threshold constants (bytes)
+# ---------------------------------------------------------------------------
+INLINE_THRESHOLD = 16_384  # 16 KB — below this, inline content is fine
+SUMMARY_THRESHOLD = 262_144  # 256 KB — above this, handle-only (no body inline)
 
 
 class ArtifactRef(KaosModel):
@@ -66,4 +75,53 @@ class ArtifactManifest(KaosModel):
             mime_type=self.mime_type,
             size=self.size,
             path=self.path,
+        )
+
+    def to_resource_link(
+        self,
+        *,
+        title: str | None = None,
+        description: str | None = None,
+    ) -> ResourceLinkContent:
+        """Create a ResourceLinkContent pointing to this artifact's body."""
+        return ResourceLinkContent(
+            name=self.name,
+            uri=self.body_uri,
+            title=title or self.description,
+            description=description,
+            mimeType=self.mime_type,
+            size=self.size,
+        )
+
+    def to_tool_result(
+        self,
+        *,
+        summary: str | None = None,
+        structured_content: dict[str, Any] | None = None,
+        inline_body: str | None = None,
+    ) -> ToolResult:
+        """Create a ToolResult respecting inline thresholds.
+
+        - size < INLINE_THRESHOLD: inline body (if provided) or summary + link
+        - size < SUMMARY_THRESHOLD: summary + resource link
+        - size >= SUMMARY_THRESHOLD: resource link only (handle-only)
+        """
+        from kaos_core.types.content import TextContent
+        from kaos_core.types.results import ToolResult
+
+        link = self.to_resource_link()
+        content: list[TextContent | ResourceLinkContent] = []
+
+        if self.size < INLINE_THRESHOLD and inline_body is not None:
+            content.append(TextContent(text=inline_body))
+        elif summary is not None:
+            content.append(TextContent(text=summary))
+
+        # Always include the resource link for non-tiny artifacts
+        if self.size >= INLINE_THRESHOLD or inline_body is None:
+            content.append(link)
+
+        return ToolResult(
+            content=content,  # type: ignore[arg-type]
+            structuredContent=structured_content,
         )

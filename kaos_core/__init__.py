@@ -12,7 +12,13 @@ from kaos_core.agent import (
     TaskManager,
     UsageStats,
 )
-from kaos_core.artifacts import ArtifactManifest, ArtifactRef, ArtifactStore
+from kaos_core.artifacts import (
+    INLINE_THRESHOLD,
+    SUMMARY_THRESHOLD,
+    ArtifactManifest,
+    ArtifactRef,
+    ArtifactStore,
+)
 from kaos_core.base import KaosContext, KaosPrompt, KaosResource, KaosTool
 from kaos_core.config import CredentialStore, KaosSettings, OAuthToken, ProfileManager
 from kaos_core.decorators import FunctionTool, kaos_tool
@@ -105,6 +111,8 @@ from kaos_core.vfs import (
 )
 
 __all__ = [
+    "INLINE_THRESHOLD",
+    "SUMMARY_THRESHOLD",
     "ArtifactManifest",
     "ArtifactRef",
     "ArtifactRetentionPolicy",

@@ -247,3 +247,102 @@ async def test_read_body_zero_length_raises(tmp_path: Path) -> None:
 
     with pytest.raises(ResourceError, match="length must be positive"):
         await runtime.artifacts.read_body(m.artifact_id, length=0)
+
+
+# ---------------------------------------------------------------------------
+# ArtifactManifest helpers: to_resource_link, to_tool_result
+# ---------------------------------------------------------------------------
+
+
+async def test_to_resource_link(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    m = await _write_and_create(
+        runtime, filename="link.txt", content="hello", mime_type="text/plain"
+    )
+
+    link = m.to_resource_link()
+    assert link.name == m.name
+    assert link.uri == m.body_uri
+    assert link.mimeType == "text/plain"
+    assert link.size == m.size
+
+
+async def test_to_resource_link_with_overrides(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    m = await _write_and_create(runtime, filename="link2.txt", content="hello")
+
+    link = m.to_resource_link(title="My Title", description="My Desc")
+    assert link.title == "My Title"
+    assert link.description == "My Desc"
+
+
+async def test_to_tool_result_tiny_artifact_inlines(tmp_path: Path) -> None:
+    """Artifacts smaller than INLINE_THRESHOLD get inlined when body is provided."""
+    runtime = _make_runtime(tmp_path)
+    m = await _write_and_create(runtime, filename="tiny.txt", content="small")
+
+    result = m.to_tool_result(inline_body="small")
+    assert not result.isError
+    # Tiny artifact with inline body → text only, no link
+    assert len(result.content) == 1
+    assert result.content[0].type == "text"
+    assert result.content[0].text == "small"  # type: ignore[union-attr]
+
+
+async def test_to_tool_result_tiny_no_body_gets_link(tmp_path: Path) -> None:
+    """Tiny artifact without inline_body still gets a resource link."""
+    runtime = _make_runtime(tmp_path)
+    m = await _write_and_create(runtime, filename="tiny2.txt", content="small")
+
+    result = m.to_tool_result(summary="A small file")
+    assert len(result.content) == 2
+    assert result.content[0].type == "text"
+    assert result.content[1].type == "resource_link"
+
+
+async def test_to_tool_result_medium_artifact(tmp_path: Path) -> None:
+    """Medium artifacts (>16KB, <256KB) get summary + resource link."""
+    from kaos_core.artifacts.models import INLINE_THRESHOLD
+
+    runtime = _make_runtime(tmp_path)
+    content = "x" * (INLINE_THRESHOLD + 100)
+    m = await _write_and_create(runtime, filename="medium.txt", content=content)
+
+    result = m.to_tool_result(summary="A medium document", inline_body=content)
+    # inline_body is ignored for medium artifacts (size >= INLINE_THRESHOLD)
+    assert len(result.content) == 2
+    assert result.content[0].type == "text"
+    assert result.content[0].text == "A medium document"  # type: ignore[union-attr]
+    assert result.content[1].type == "resource_link"
+
+
+async def test_to_tool_result_large_artifact_link_only(tmp_path: Path) -> None:
+    """Large artifacts (>256KB) get link only (no summary unless provided)."""
+    from kaos_core.artifacts.models import SUMMARY_THRESHOLD
+
+    runtime = _make_runtime(tmp_path)
+    content = "x" * (SUMMARY_THRESHOLD + 100)
+    m = await _write_and_create(runtime, filename="large.txt", content=content)
+
+    result = m.to_tool_result()
+    assert len(result.content) == 1
+    assert result.content[0].type == "resource_link"
+
+
+async def test_to_tool_result_structured_content(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    m = await _write_and_create(runtime, filename="struct.txt", content="data")
+
+    result = m.to_tool_result(
+        summary="Parsed document",
+        structured_content={"pages": 42, "title": "My Doc"},
+    )
+    assert result.structuredContent == {"pages": 42, "title": "My Doc"}
+
+
+def test_threshold_constants() -> None:
+    from kaos_core.artifacts.models import INLINE_THRESHOLD, SUMMARY_THRESHOLD
+
+    assert INLINE_THRESHOLD == 16_384
+    assert SUMMARY_THRESHOLD == 262_144
+    assert INLINE_THRESHOLD < SUMMARY_THRESHOLD
