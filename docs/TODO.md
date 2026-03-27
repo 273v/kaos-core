@@ -1,21 +1,20 @@
 # kaos-core: Implementation Tracker
 
-**Last updated:** 2026-03-24 (rev 3 — implementation status and coverage refresh)
+**Last updated:** 2026-03-27 (rev 4 — artifact helpers, threshold constants, content resource support)
 
 ---
 
 ## Current Status
 
 - [x] Core v0.1 package scaffolding, runtime layers, execution engine, agent primitives, VFS, docs, CI, and benchmark harness are implemented.
-- [x] Validation currently passes with `ruff check .`, `mypy` on Python 3.13 and 3.14, and `pytest -q` on Python 3.13 and 3.14.
-- [x] Coverage target is now met on core paths: full-suite coverage is 91% on both Python 3.13 and Python 3.14.
+- [x] Validation passes with `ruff check`, `ty check`, and `pytest` on Python 3.13. **`ty` is the required type checker, not mypy.**
+- [x] Coverage: 56 tests, 90% coverage.
 - [x] The sibling MCP server/runtime module is `kaos-mcp`; references to `kaos-mcp-server` should be treated as stale wording.
-- [x] `kaos-core` now has an explicit interop contract for `kaos-mcp`: runtime registries, metadata models, MCP-native tool results, and context capability/roots/progress hooks are the initial stable boundary.
-- [ ] Remaining hardening is mostly branch-depth, not missing features: prompt registry/template edges, metadata/parameter edge cases, and a few negative elicitation/VFS branches still have lower coverage than the rest of the package.
-- [ ] Request-scoped resource reads still need contract hardening before `kaos-mcp` can safely widen beyond the initial tool-only server slice.
-- [ ] Prompt/resource completions remain intentionally server-owned behavior for now; `kaos-core` does not yet define first-class completion providers or completion metadata.
-- [ ] Experimental tasks remain deferred at the server boundary until there is a clearer `KaosRuntime` ownership model.
-- [ ] This tracker still reflects the original scaffold plan more than the current state. Future edits should continue converting it into a completion-plus-hardening backlog instead of a file-by-file build checklist.
+- [x] `kaos-core` now has an explicit interop contract for `kaos-mcp`: runtime registries, metadata models, MCP-native tool results, and context capability/roots/progress hooks are the stable boundary.
+- [x] **Artifact helpers added (2026-03-27)**: `INLINE_THRESHOLD` (16 KB), `SUMMARY_THRESHOLD` (256 KB), `ArtifactManifest.to_resource_link()`, `ArtifactManifest.to_tool_result()` — auto-selects inline vs summary+link vs handle-only based on artifact size.
+- [ ] Remaining hardening: prompt registry/template edges, metadata/parameter edge cases, negative elicitation/VFS branches.
+- [ ] Prompt/resource completions remain server-owned behavior; `kaos-core` does not define completion providers.
+- [ ] Experimental tasks remain deferred at server boundary.
 
 ---
 
