@@ -48,6 +48,9 @@ dev = [
   "ty>=0.0.1a17",
 ]
 
+[project.scripts]
+kaos-core = "kaos_core.cli:main"
+
 [project.urls]
 Homepage = "https://273ventures.com"
 Documentation = "https://docs.273ventures.com"
