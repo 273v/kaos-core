@@ -10,6 +10,18 @@
 - Pydantic v2 models and settings with Python 3.13 and 3.14 support.
 - Structured logging and context-aware debugging hooks across execution paths.
 
+## CLI
+
+```bash
+kaos-core tools list --json                     # registered tools
+kaos-core tools search "pdf" --category document  # search tools
+kaos-core artifacts list --session my-session   # stored artifacts
+kaos-core config show --json                    # runtime settings
+kaos-core vfs ls /artifacts/                    # VFS contents
+```
+
+All commands support `--json` for structured output.
+
 ## Development
 
 ```bash
