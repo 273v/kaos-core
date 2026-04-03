@@ -36,6 +36,8 @@ class ToolResult(KaosModel):
     def create_success(
         cls,
         output: str | dict[str, Any] | list[ContentType] | None = None,
+        *,
+        summary: str | None = None,
         **kwargs: Any,
     ) -> ToolResult:
         content: list[ContentType]
@@ -43,6 +45,8 @@ class ToolResult(KaosModel):
             content = [TextContent(text=output)]
         elif isinstance(output, list):
             content = output
+        elif isinstance(output, dict) and summary is not None:
+            content = [TextContent(text=summary)]
         else:
             content = cast(list[ContentType], kwargs.pop("content", []))
         structured = output if isinstance(output, dict) else kwargs.pop("structuredContent", None)
