@@ -112,6 +112,34 @@ class ToolResult(KaosModel):
             **kwargs,
         )
 
+    # -- Typed accessors --------------------------------------------------
+
+    @property
+    def text(self) -> str | None:
+        """First TextContent text, or None if content is empty or not text."""
+        if self.content and isinstance(self.content[0], TextContent):
+            return self.content[0].text
+        return None
+
+    def require_text(self) -> str:
+        """First TextContent text. Raises ValueError if not present."""
+        if self.content and isinstance(self.content[0], TextContent):
+            return self.content[0].text
+        kind = type(self.content[0]).__name__ if self.content else "empty"
+        raise ValueError(f"Expected TextContent, got {kind}")
+
+    def get_structured(self, key: str, default: Any = None) -> Any:
+        """Safe access to structuredContent dict."""
+        if self.structuredContent is None:
+            return default
+        return self.structuredContent.get(key, default)
+
+    def require_structured(self) -> dict[str, Any]:
+        """Return structuredContent dict. Raises ValueError if None."""
+        if self.structuredContent is None:
+            raise ValueError("structuredContent is None")
+        return self.structuredContent
+
     def to_mcp_dict(self) -> dict[str, Any]:
         return self.model_dump(by_alias=True, exclude_none=True)
 

@@ -7,7 +7,6 @@ from kaos_core import (
     KaosURI,
     TaskDefinition,
     TaskManager,
-    TextContent,
     ToolCapability,
     ToolCategory,
     URITemplate,
@@ -42,8 +41,7 @@ async def test_task_manager_and_uri_helpers() -> None:
 
     assert status.state.value == "completed"
     assert status.result is not None
-    assert isinstance(status.result.content[0], TextContent)
-    assert status.result.content[0].text == "ok"
+    assert status.result.text == "ok"
 
     uri = KaosURI.parse("kaos://core/document/readme?version=1")
     assert uri.to_string() == "kaos://core/document/readme?version=1"

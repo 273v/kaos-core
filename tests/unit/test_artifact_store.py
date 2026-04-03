@@ -286,7 +286,7 @@ async def test_to_tool_result_tiny_artifact_inlines(tmp_path: Path) -> None:
     # Tiny artifact with inline body → text only, no link
     assert len(result.content) == 1
     assert result.content[0].type == "text"
-    assert result.content[0].text == "small"  # type: ignore[union-attr]
+    assert result.text == "small"
 
 
 async def test_to_tool_result_tiny_no_body_gets_link(tmp_path: Path) -> None:
@@ -312,7 +312,7 @@ async def test_to_tool_result_medium_artifact(tmp_path: Path) -> None:
     # inline_body is ignored for medium artifacts (size >= INLINE_THRESHOLD)
     assert len(result.content) == 2
     assert result.content[0].type == "text"
-    assert result.content[0].text == "A medium document"  # type: ignore[union-attr]
+    assert result.text == "A medium document"
     assert result.content[1].type == "resource_link"
 
 
