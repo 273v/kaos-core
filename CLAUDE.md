@@ -12,5 +12,15 @@
 - `ToolMetadata.name` must match `^[a-z0-9]+(?:-[a-z0-9]+){2,}$` — use `kaos-{module}-{action}` pattern.
 - `ParameterSchema` inputs should be flat primitives (string, integer, boolean), not nested objects. Use `constraints` for enums and ranges.
 - Error messages from `ToolResult.create_error()` must include recovery guidance — these are consumed by LLMs for self-correction. See `docs/TOOL_DESIGN_GUIDE.md`.
+- Dict-returning tools must use `ToolResult.create_success(output=data_dict, summary="human-readable summary")` to provide both `TextContent` and `structuredContent`.
 - Search results must use a wrapper with `total_matches` and `has_more` fields for pagination.
+
+## ToolResult Typed Accessors
+
+Use typed accessors instead of unsafe `result.content[0].text` patterns:
+
+- `result.text` — First TextContent text, or `None` (property)
+- `result.require_text()` — First TextContent text, raises `ValueError` if not present
+- `result.get_structured(key, default=None)` — Safe dict access on `structuredContent`
+- `result.require_structured()` — Returns `structuredContent` dict, raises `ValueError` if `None`
 
