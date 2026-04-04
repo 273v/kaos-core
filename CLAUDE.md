@@ -5,6 +5,38 @@
 - Use `typing.get_type_hints()` for schema extraction and function introspection to stay compatible with Python 3.14 deferred annotations.
 - New hot-path code should have a targeted test and, when appropriate, a benchmark in `benchmarks/benchmark_core.py`.
 - Logging should include `session_id` and `trace_id` whenever a `KaosContext` is available.
+- Use `from kaos_core.logging import get_logger` instead of `logging.getLogger(__name__)`. The `get_logger()` auto-prefixes names into the `kaos.*` hierarchy (e.g., `kaos_web.clients.http` → `kaos.web.clients.http`), inheriting the structured formatter and context filter.
+
+## ModuleSettings
+
+`ModuleSettings` (`kaos_core.config.module_settings`) is the base class for per-module typed settings:
+
+```python
+from kaos_core.config.module_settings import ModuleSettings
+
+class KaosWebSettings(ModuleSettings):
+    browser_type: Literal["chromium", "firefox", "webkit"] = "chromium"
+    model_config = SettingsConfigDict(env_prefix="KAOS_WEB_", ...)
+
+# From environment
+settings = KaosWebSettings()
+
+# With context overrides (highest priority)
+settings = KaosWebSettings.from_context(context, browser_type="firefox")
+settings = context.get_module_settings(KaosWebSettings)
+```
+
+- Resolution order: explicit overrides → `KaosContext._config` → env vars → `.env` → defaults
+- Modules register settings on `KaosRuntime.module_settings["web"] = KaosWebSettings()` during `register_*_tools()`
+- API keys should use `pydantic.SecretStr` to prevent accidental logging
+
+## Secret Resolution
+
+`resolve_secret()` (`kaos_core.config.secrets`) resolves secrets from multiple sources:
+
+1. `settings_value` (SecretStr from ModuleSettings)
+2. `env_var` (direct `os.environ` lookup)
+3. `credential_store` (file-based `CredentialStore`)
 
 ## Tool Types and Annotations
 

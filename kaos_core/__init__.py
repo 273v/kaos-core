@@ -20,7 +20,14 @@ from kaos_core.artifacts import (
     ArtifactStore,
 )
 from kaos_core.base import KaosContext, KaosPrompt, KaosResource, KaosTool
-from kaos_core.config import CredentialStore, KaosSettings, OAuthToken, ProfileManager
+from kaos_core.config import (
+    CredentialStore,
+    KaosSettings,
+    ModuleSettings,
+    OAuthToken,
+    ProfileManager,
+    resolve_secret,
+)
 from kaos_core.decorators import FunctionTool, kaos_tool
 from kaos_core.exceptions import (
     ElicitationError,
@@ -154,6 +161,7 @@ __all__ = [
     "McpLogLevel",
     "ModelHint",
     "ModelPreferences",
+    "ModuleSettings",
     "NamespaceInfo",
     "NamespaceManager",
     "OAuthToken",
@@ -213,4 +221,5 @@ __all__ = [
     "__version__",
     "build_system_prompt",
     "kaos_tool",
+    "resolve_secret",
 ]

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextvars import ContextVar
+from typing import Any
 
 from kaos_core.artifacts import ArtifactStore
 from kaos_core.config import KaosSettings
@@ -21,6 +22,7 @@ class KaosRuntime:
         self.resources = ResourceRegistry()
         self.prompts = PromptRegistry()
         self.vfs = VirtualFileSystem()
+        self.module_settings: dict[str, Any] = {}
         self.artifacts = ArtifactStore(
             self.vfs,
             manifest_context_id=self.settings.artifact_manifest_context_id,

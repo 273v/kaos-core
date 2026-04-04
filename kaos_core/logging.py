@@ -64,6 +64,25 @@ def setup_kaos_logging(
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Get a logger under the ``kaos`` hierarchy.
+
+    Names are automatically mapped so that loggers inherit handlers and
+    filters from the ``kaos`` root logger:
+
+    * ``kaos.context`` → unchanged (already in hierarchy)
+    * ``kaos_web.clients.http`` → ``kaos.web.clients.http``
+    * ``my_module`` → ``kaos.my_module``
+
+    This means ``get_logger(__name__)`` in any kaos package produces a
+    logger that inherits the structured formatter and context filter.
+    """
+    if not name.startswith("kaos"):
+        name = f"kaos.{name}"
+    elif name.startswith("kaos_"):
+        # kaos_web.clients.http → kaos.web.clients.http
+        name = "kaos." + name[5:]
+    # else: already starts with "kaos." — use as-is
+
     logger = logging.getLogger(name)
     if not logger.handlers and not logging.getLogger("kaos").handlers:
         setup_kaos_logging()

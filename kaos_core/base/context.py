@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
-from typing import Any
+from typing import Any, TypeVar
 from uuid import uuid4
 
 from kaos_core.exceptions import RegistryError
@@ -11,6 +11,8 @@ from kaos_core.protocol.initialize import InitializeRequest, InitializeResult
 from kaos_core.protocol.roots import Root
 
 ProgressCallback = Callable[[float, float | None, str | None], Awaitable[None] | None]
+
+_T = TypeVar("_T")
 
 
 class KaosContext:
@@ -129,6 +131,20 @@ class KaosContext:
 
     def set_config(self, key: str, value: Any) -> None:
         self._config[key] = value
+
+    def get_module_settings(self, cls: type[_T]) -> _T:
+        """Get typed module settings, overlaying context config overrides.
+
+        Calls ``cls.from_context(self)`` to merge environment defaults with
+        any context-level overrides in ``_config``.
+
+        Args:
+            cls: A ``ModuleSettings`` subclass.
+
+        Returns:
+            A settings instance with context overrides applied.
+        """
+        return cls.from_context(self)  # type: ignore[attr-defined]
 
     async def read_resource(self, uri: str) -> Any:
         if self.runtime is None:
