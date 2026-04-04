@@ -5,9 +5,11 @@ from kaos_core.agent.elicitation import (
     ElicitationResponse,
 )
 from kaos_core.agent.sampling import ModelHint, ModelPreferences, SamplingRequest, SamplingResponse
+from kaos_core.agent.settings import AgentSettings
 from kaos_core.agent.task import TaskManager
 
 __all__ = [
+    "AgentSettings",
     "DelegationRequest",
     "DelegationResult",
     "ElicitationCompletionNotification",

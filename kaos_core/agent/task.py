@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
+from kaos_core.agent.settings import AgentSettings
 from kaos_core.exceptions import TaskError
 from kaos_core.types.enums import TaskState
 from kaos_core.types.results import ToolResult
@@ -23,9 +24,16 @@ def _iso_now() -> str:
 
 
 class TaskManager:
-    def __init__(self, executor: TaskExecutor | None = None, *, enabled: bool = False) -> None:
+    def __init__(
+        self,
+        executor: TaskExecutor | None = None,
+        *,
+        enabled: bool = False,
+        settings: AgentSettings | None = None,
+    ) -> None:
         self._executor = executor
         self._enabled = enabled
+        self._settings = settings or AgentSettings()
         self._statuses: dict[str, TaskStatus] = {}
         self._definitions: dict[str, TaskDefinition] = {}
         self._handles: dict[str, asyncio.Task[None]] = {}
@@ -43,7 +51,7 @@ class TaskManager:
             state=TaskState.WORKING,
             created_at=created_at,
             updated_at=created_at,
-            poll_interval=0.25,
+            poll_interval=self._settings.poll_interval,
         )
         if self._executor is not None:
             self._handles[definition.task_id] = asyncio.create_task(self._run(definition))
@@ -113,8 +121,9 @@ class TaskManager:
         if request.state_filter is not None:
             statuses = [status for status in statuses if status.state == request.state_filter]
         start = int(request.cursor or "0")
-        page = statuses[start : start + 50]
-        next_cursor = str(start + 50) if start + 50 < len(statuses) else None
+        page_size = self._settings.task_page_size
+        page = statuses[start : start + page_size]
+        next_cursor = str(start + page_size) if start + page_size < len(statuses) else None
         return TaskListResponse(tasks=page, next_cursor=next_cursor)
 
     async def wait_for_task(self, task_id: str, timeout: float | None = None) -> TaskStatus:

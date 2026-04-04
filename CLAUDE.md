@@ -47,6 +47,17 @@ settings = context.get_module_settings(KaosWebSettings)
 - Dict-returning tools must use `ToolResult.create_success(output=data_dict, summary="human-readable summary")` to provide both `TextContent` and `structuredContent`.
 - Search results must use a wrapper with `total_matches` and `has_more` fields for pagination.
 
+## AgentSettings
+
+`AgentSettings` (`kaos_core.agent.settings`) configures task management and polling:
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `KAOS_AGENT_POLL_INTERVAL` | `0.25` | Polling interval (seconds) for task status checks |
+| `KAOS_AGENT_TASK_PAGE_SIZE` | `50` | Page size for task list pagination |
+
+`TaskManager` accepts an optional `settings: AgentSettings` parameter. If omitted, loads from environment.
+
 ## ToolResult Typed Accessors
 
 Use typed accessors instead of unsafe `result.content[0].text` patterns:
