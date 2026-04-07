@@ -43,7 +43,7 @@ settings = context.get_module_settings(KaosWebSettings)
 - `ToolAnnotations` (`kaos_core.types.annotations`) must be set on every `KaosTool`. Never leave as `None` — clients assume worst-case (destructive + open-world) when unset.
 - `ToolMetadata.name` must match `^[a-z0-9]+(?:-[a-z0-9]+){2,}$` — use `kaos-{module}-{action}` pattern.
 - `ParameterSchema` inputs should be flat primitives (string, integer, boolean), not nested objects. Use `constraints` for enums and ranges.
-- Error messages from `ToolResult.create_error()` must include recovery guidance — these are consumed by LLMs for self-correction. See `docs/TOOL_DESIGN_GUIDE.md`.
+- Error messages from `ToolResult.create_error()` must include recovery guidance — these are consumed by LLMs for self-correction. See `docs/guides/tool-design.md`.
 - Dict-returning tools must use `ToolResult.create_success(output=data_dict, summary="human-readable summary")` to provide both `TextContent` and `structuredContent`.
 - Search results must use a wrapper with `total_matches` and `has_more` fields for pagination.
 
