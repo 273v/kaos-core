@@ -73,6 +73,7 @@ from kaos_core.registry import (
     ResourceRegistry,
     ToolRegistry,
 )
+from kaos_core.tools import register_core_tools
 from kaos_core.types import (
     ArtifactRetentionPolicy,
     ArtifactRole,
@@ -221,5 +222,6 @@ __all__ = [
     "__version__",
     "build_system_prompt",
     "kaos_tool",
+    "register_core_tools",
     "resolve_secret",
 ]

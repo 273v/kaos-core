@@ -50,6 +50,7 @@ dev = [
 
 [project.scripts]
 kaos-core = "kaos_core.cli:main"
+kaos-core-serve = "kaos_core.serve:main"
 
 [project.urls]
 Homepage = "https://273ventures.com"
@@ -123,6 +124,7 @@ known-first-party = ["kaos_core"]
 
 [tool.ty.src]
 include = ["kaos_core", "tests"]
+exclude = ["kaos_core/serve.py"]
 
 [tool.uv]
 package = true
