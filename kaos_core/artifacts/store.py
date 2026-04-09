@@ -10,10 +10,13 @@ from uuid import uuid4
 
 from kaos_core.artifacts.models import ArtifactManifest
 from kaos_core.exceptions import ResourceError
+from kaos_core.logging import get_logger
 from kaos_core.protocol.roots import Root
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
 from kaos_core.vfs.backends import DiskBackend
 from kaos_core.vfs.core import VirtualFileSystem
+
+logger = get_logger(__name__)
 
 
 class ArtifactStore:
@@ -70,7 +73,12 @@ class ArtifactStore:
                 manifest = ArtifactManifest.model_validate_json(
                     record_path.read_text(encoding="utf-8")
                 )
-            except Exception:
+            except Exception as exc:
+                logger.warning(
+                    "Skipping invalid persisted artifact manifest at %s: %s",
+                    record_path,
+                    exc,
+                )
                 continue
             self._index_manifest(manifest)
 

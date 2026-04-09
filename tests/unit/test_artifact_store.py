@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -149,6 +150,25 @@ async def test_resolve_unknown_raises(tmp_path: Path) -> None:
 
     with pytest.raises(ResourceError, match="Unknown artifact"):
         runtime.artifacts.resolve("kaos://artifacts/nonexistent-id/body")
+
+
+async def test_invalid_persisted_manifest_is_logged(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    manifest_dir = (
+        tmp_path
+        / "vfs"
+        / runtime.artifacts._manifest_context_id
+        / runtime.artifacts._manifest_prefix
+    )
+    manifest_dir.mkdir(parents=True, exist_ok=True)
+    (manifest_dir / "broken.json").write_text("{not-json", encoding="utf-8")
+
+    with patch("kaos_core.artifacts.store.logger.warning") as mock_warn:
+        reloaded = _make_runtime(tmp_path)
+
+    assert reloaded.artifacts.list_artifacts() == []
+    mock_warn.assert_called_once()
+    assert "Skipping invalid persisted artifact manifest" in mock_warn.call_args[0][0]
 
 
 async def test_read_uri_manifest(tmp_path: Path) -> None:
