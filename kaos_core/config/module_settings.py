@@ -42,6 +42,16 @@ class ModuleSettings(BaseSettings):
     """
 
     @classmethod
+    def resolve(cls, settings: Self | None = None) -> Self:
+        """Return the provided settings or construct defaults from environment.
+
+        Replaces the common ``_get_settings`` helper pattern found in connectors::
+
+            settings = KaosSourceECFRSettings.resolve(settings)
+        """
+        return settings if settings is not None else cls()
+
+    @classmethod
     def from_context(
         cls,
         context: Any = None,
