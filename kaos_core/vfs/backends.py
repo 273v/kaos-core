@@ -209,6 +209,12 @@ class DiskBackend:
 
 
 class S3Backend:
+    def __init__(self, **kwargs: object) -> None:
+        raise NotImplementedError(
+            "S3 backend is not yet implemented. Use 'disk' or 'memory' backend instead. "
+            "Set KAOS_VFS_DEFAULT_BACKEND=disk in your environment."
+        )
+
     async def read(self, path: str) -> bytes:
         raise NotImplementedError("S3 backend is a stub in v0.1")
 
