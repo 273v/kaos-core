@@ -35,7 +35,7 @@ class VirtualFileSystem:
         self.config = config or VFSConfig()
         self._memory = MemoryBackend()
         self._disk = DiskBackend(self.config.disk_base_path)
-        self._s3 = S3Backend()
+        self._s3: S3Backend | None = None  # Lazy — instantiated only if S3 backend is used
 
     def _disk_backend(self) -> DiskBackend:
         configured_base_path = self.config.disk_base_path.resolve()
@@ -88,6 +88,9 @@ class VirtualFileSystem:
         if self.config.default_backend is StorageBackend.DISK:
             return self._disk_backend()
         if self.config.default_backend is StorageBackend.S3:
+            # Lazy instantiation — raises NotImplementedError with guidance
+            if self._s3 is None:
+                self._s3 = S3Backend()
             return self._s3
         return self._memory
 
