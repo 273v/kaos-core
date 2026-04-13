@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 
-@dataclass(slots=True)
+@dataclass(slots=True)  # Mutable: tool_count incremented by NamespaceManager.increment_tool_count()
 class NamespaceInfo:
     namespace: str
     module_name: str

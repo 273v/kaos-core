@@ -5,7 +5,7 @@ from string import Formatter
 from urllib.parse import parse_qs, urlencode, urlparse
 
 
-@dataclass(slots=True)
+@dataclass(frozen=True, slots=True)
 class KaosURI:
     scheme: str
     module: str

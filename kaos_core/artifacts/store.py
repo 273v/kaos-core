@@ -104,6 +104,7 @@ class ArtifactStore:
                 context_id=self._manifest_context_id,
             )
         except Exception:
+            logger.debug("Failed to read manifest for artifact %s", artifact_id, exc_info=True)
             return None
         try:
             manifest = ArtifactManifest.model_validate_json(payload)
