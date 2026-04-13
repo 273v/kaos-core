@@ -246,17 +246,9 @@ async def test_vfs_backends_paths_and_file_operations(tmp_path: Path) -> None:
     assert await disk_backend.exists("logs/output.txt") is False
     assert await disk_backend.list("logs") == []
 
-    s3_backend = S3Backend()
+    # S3Backend raises NotImplementedError at construction (not yet implemented)
     with pytest.raises(NotImplementedError):
-        await s3_backend.read("bucket/key")
-    with pytest.raises(NotImplementedError):
-        await s3_backend.write("bucket/key", b"data")
-    with pytest.raises(NotImplementedError):
-        await s3_backend.delete("bucket/key")
-    with pytest.raises(NotImplementedError):
-        await s3_backend.exists("bucket/key")
-    with pytest.raises(NotImplementedError):
-        await s3_backend.list("bucket")
+        S3Backend()
 
     raw = VFSFile()
     assert raw.write(b"abcdef") == 6
