@@ -6,7 +6,10 @@ from kaos_core.types.metadata import PromptMetadata
 
 def build_system_prompt() -> PromptTemplate:
     return PromptTemplate(
-        "You are operating inside KAOS. Prioritize correctness, clear reasoning, and safe tool usage.\n\nTask: {task}",
+        (
+            "You are operating inside KAOS. Prioritize correctness, clear reasoning, "
+            "and safe tool usage.\n\nTask: {task}"
+        ),
         variables=[TemplateVariable(name="task", type="string", description="Task description")],
         metadata=PromptMetadata(
             name="kaos-system-task",

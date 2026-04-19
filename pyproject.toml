@@ -40,6 +40,7 @@ pydantic-ai = [
 
 [dependency-groups]
 dev = [
+  "kaos-mcp>=0.1.0",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-benchmark>=5.1.0",
@@ -114,17 +115,15 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "SIM", "RUF", "C4", "PTH"]
-ignore = ["B008", "E501"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/*" = ["B011"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["kaos_core"]
 
 [tool.ty.src]
 include = ["kaos_core", "tests"]
-exclude = ["kaos_core/serve.py"]
 
 [tool.uv]
 package = true
+
+[tool.uv.sources]
+kaos-mcp = { path = "../kaos-mcp", editable = true }
