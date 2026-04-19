@@ -8,6 +8,8 @@ from typing import Any
 from urllib.parse import unquote, urlparse
 from uuid import uuid4
 
+from pydantic import ValidationError
+
 from kaos_core.artifacts.models import ArtifactManifest
 from kaos_core.exceptions import ResourceError
 from kaos_core.logging import get_logger
@@ -15,7 +17,6 @@ from kaos_core.protocol.roots import Root
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
 from kaos_core.vfs.backends import DiskBackend
 from kaos_core.vfs.core import VirtualFileSystem
-from pydantic import ValidationError
 
 logger = get_logger(__name__)
 
