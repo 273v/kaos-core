@@ -1,5 +1,29 @@
 # kaos-core Development Notes
 
+## Required Checklists
+
+Apply these checklist sources to every change in this module.
+
+Python:
+- `../docs/python/checklists/index.md`
+- `../docs/python/checklists/01-research.md`
+- `../docs/python/checklists/02-design.md`
+- `../docs/python/checklists/03-implement.md`
+- `../docs/python/checklists/04-test.md`
+- `../docs/python/checklists/05-quality.md`
+- `../docs/python/checklists/06-review.md`
+- `../docs/python/checklists/07-commit.md`
+- `../docs/python/checklists/08-debug.md`
+- `../docs/python/checklists/09-optimize.md`
+- `../docs/python/checklists/10-document.md`
+- `../docs/python/checklists/11-retrieval-and-evaluation.md`
+- `../docs/python/checklists/12-benchmarking.md`
+- `../docs/python/checklists/13-kaos-agent-retrieval.md`
+
+Rust-adjacent:
+- `../kaos-nlp-core/docs/FUZZY_HASHING_PLAN.md` (`QA Checklist`) for Rust, PyO3, native bindings, and performance-critical boundary work
+- `../kaos-nlp-core/docs/todo/API_IMPROVEMENTS_TODO.md` for Rust-adjacent backlog and API-shape guidance
+
 - Prefer explicit `KaosRuntime` injection in library code. Only use `KaosRuntime.default()` for scripts, tests, or ergonomic wrappers.
 - Keep wire-facing models MCP-native. Convenience fields are allowed only when excluded from serialization.
 - Use `typing.get_type_hints()` for schema extraction and function introspection to stay compatible with Python 3.14 deferred annotations.
@@ -66,4 +90,3 @@ Use typed accessors instead of unsafe `result.content[0].text` patterns:
 - `result.require_text()` — First TextContent text, raises `ValueError` if not present
 - `result.get_structured(key, default=None)` — Safe dict access on `structuredContent`
 - `result.require_structured()` — Returns `structuredContent` dict, raises `ValueError` if `None`
-
