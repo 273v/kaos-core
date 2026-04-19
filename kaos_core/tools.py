@@ -14,6 +14,7 @@ from kaos_core.artifacts.models import SUMMARY_THRESHOLD
 from kaos_core.base.context import KaosContext
 from kaos_core.base.tool import KaosTool
 from kaos_core.config.credentials import CredentialStore
+from kaos_core.exceptions import ResourceError
 from kaos_core.logging import get_logger
 from kaos_core.types.annotations import ToolAnnotations
 from kaos_core.types.enums import ToolCapability, ToolCategory
@@ -602,7 +603,7 @@ class ArtifactsInspectTool(KaosTool):
 
         try:
             manifest = context.runtime.artifacts.get(artifact_id)
-        except Exception:
+        except ResourceError:
             logger.debug("Failed to get artifact '%s'", artifact_id, exc_info=True)
             return ToolResult.create_error(
                 f"Artifact '{artifact_id}' not found. "

@@ -15,6 +15,7 @@ from kaos_core.protocol.roots import Root
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
 from kaos_core.vfs.backends import DiskBackend
 from kaos_core.vfs.core import VirtualFileSystem
+from pydantic import ValidationError
 
 logger = get_logger(__name__)
 
@@ -73,7 +74,7 @@ class ArtifactStore:
                 manifest = ArtifactManifest.model_validate_json(
                     record_path.read_text(encoding="utf-8")
                 )
-            except Exception as exc:
+            except (OSError, ValidationError, ValueError) as exc:
                 logger.warning(
                     "Skipping invalid persisted artifact manifest at %s: %s",
                     record_path,
@@ -103,12 +104,12 @@ class ArtifactStore:
                 self._manifest_record_path(artifact_id),
                 context_id=self._manifest_context_id,
             )
-        except Exception:
+        except (FileNotFoundError, KeyError):
             logger.debug("Failed to read manifest for artifact %s", artifact_id, exc_info=True)
             return None
         try:
             manifest = ArtifactManifest.model_validate_json(payload)
-        except Exception as exc:
+        except (ValidationError, ValueError) as exc:
             raise ResourceError(
                 "Artifact manifest record is invalid", artifact_id=artifact_id
             ) from exc
