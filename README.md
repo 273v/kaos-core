@@ -45,11 +45,24 @@ All commands support `--json` for structured output.
 
 ```bash
 uv sync --python 3.13 --group dev
-uv run --python 3.13 ruff format kaos_core tests
-uv run --python 3.13 ruff check --fix kaos_core tests
-uv run --python 3.13 ty check kaos_core tests
-uv run --python 3.13 pytest -q
-uv run --python 3.13 python benchmarks/benchmark_core.py
+```
+
+Install pre-commit hooks (recommended — they run the same checks as CI on
+every commit, scoped to staged files):
+
+```bash
+uvx pre-commit install
+uvx pre-commit run --all-files     # one-time full sweep
+```
+
+Manual QA commands (the same set CI runs):
+
+```bash
+uv run ruff format --check kaos_core tests
+uv run ruff check kaos_core tests
+uv run ty check kaos_core tests
+uv run pytest -m "not live and not network and not slow" --no-cov
+uv run python benchmarks/benchmark_core.py
 ```
 
 ## Build From Source
