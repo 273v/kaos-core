@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `KaosTool.validate_inputs` now performs primitive JSON Schema type
+  checks (string, integer, number, boolean, array, object, null) on
+  every provided input — previously only the presence of required
+  fields was validated. Type mismatches raise
+  :class:`~kaos_core.exceptions.ValidationError` with a list of all
+  failing fields. This closes a contract gap where tools advertised
+  typed schemas but accepted any value at runtime.
+
+  Booleans are rejected for `integer` / `number` fields (Python's
+  ``bool`` is a subclass of ``int`` but a distinct JSON type), and
+  integers are rejected for `boolean` fields, matching the behaviour
+  of the ``jsonschema`` library.
+
+  Full JSON Schema validation (`enum`, `minimum`/`maximum`, `pattern`,
+  nested `properties`, `oneOf`/`anyOf`, `$ref`) is on the v0.2 roadmap
+  via the `jsonschema` library.
+
 ## [0.1.0a1] — 2026-05-04
 
 First public alpha release.
