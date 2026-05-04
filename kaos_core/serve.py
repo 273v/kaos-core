@@ -27,7 +27,11 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     try:
-        from kaos_mcp import KaosMCPServer, KaosMCPSettings
+        # kaos-mcp is an optional companion package shipped separately
+        # (it depends on kaos-content, which depends on kaos-core).
+        # The import is wrapped so a bare `kaos-core` install still
+        # produces the helpful error below instead of a hard ImportError.
+        from kaos_mcp import KaosMCPServer, KaosMCPSettings  # ty: ignore[unresolved-import]
 
         from kaos_core.registry import KaosRuntime
     except ImportError:
