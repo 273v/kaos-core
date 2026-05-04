@@ -8,13 +8,24 @@ dynamic = ["version"]
 description = "Core protocol, runtime, and execution infrastructure for KAOS modules"
 readme = "README.md"
 requires-python = ">=3.13"
-license = { text = "LicenseRef-Proprietary" }
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
 authors = [
   { name = "273 Ventures LLC", email = "it@273ventures.com" },
+]
+keywords = [
+  "agentic",
+  "mcp",
+  "model-context-protocol",
+  "runtime",
+  "infrastructure",
+  "legal-tech",
+  "kaos",
 ]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
@@ -54,9 +65,11 @@ kaos-core = "kaos_core.cli:main"
 kaos-core-serve = "kaos_core.serve:main"
 
 [project.urls]
-Homepage = "https://273ventures.com"
-Documentation = "https://docs.273ventures.com"
-Repository = "https://github.com/273v/kaos-modules"
+Homepage = "https://kelvin.legal"
+Documentation = "https://docs.kelvin.legal"
+Repository = "https://github.com/273v/kaos-core"
+Issues = "https://github.com/273v/kaos-core/issues"
+Changelog = "https://github.com/273v/kaos-core/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "kaos_core/_version.py"
@@ -65,7 +78,9 @@ path = "kaos_core/_version.py"
 include = [
   "/kaos_core",
   "/README.md",
-  "/CLAUDE.md",
+  "/CHANGELOG.md",
+  "/LICENSE",
+  "/NOTICE",
   "/docs",
   "/tests",
   "/benchmarks",

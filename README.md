@@ -1,6 +1,25 @@
 # kaos-core
 
-`kaos-core` is the foundational library for Kelvin Agentic OS modules. It provides the MCP-native type system, runtime container, registries, execution engine, agent primitives, and VFS abstractions that sibling modules build on.
+[![PyPI - Version](https://img.shields.io/pypi/v/kaos-core)](https://pypi.org/project/kaos-core/)
+[![Python](https://img.shields.io/pypi/pyversions/kaos-core)](https://pypi.org/project/kaos-core/)
+[![License](https://img.shields.io/pypi/l/kaos-core)](https://github.com/273v/kaos-core/blob/main/LICENSE)
+
+`kaos-core` is the foundational library for KAOS (Kelvin Agentic Operating System) modules. It provides the MCP-native type system, runtime container, registries, execution engine, agent primitives, and VFS abstractions that sibling modules build on.
+
+## Install
+
+```bash
+uv add kaos-core
+# or
+pip install kaos-core
+```
+
+Optional extras:
+
+```bash
+uv add 'kaos-core[mcp]'           # MCP server runtime
+uv add 'kaos-core[pydantic-ai]'   # pydantic-ai integration
+```
 
 ## Design Summary
 
@@ -33,25 +52,22 @@ uv run --python 3.13 pytest -q
 uv run --python 3.13 python benchmarks/benchmark_core.py
 ```
 
-## Build And Install
-
-Build an sdist and wheel with `uv`:
+## Build From Source
 
 ```bash
 uv build
+uv pip install dist/kaos_core-*.whl
 ```
 
-Install the package into another environment with `pip`:
+Or install editable from the module root:
 
 ```bash
-pip install dist/kaos_core-0.1.0-py3-none-any.whl
+uv pip install -e .
 ```
 
-Or install directly from the module root with `uv`:
+## License
 
-```bash
-uv pip install .
-```
+Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ## Package Layout
 
