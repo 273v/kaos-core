@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `CredentialStore` now writes credential files atomically (sibling
+  temp file + ``fsync`` + ``os.replace``) and sets file mode ``0o600``
+  on every write. Parent directories are created if missing. The class
+  docstring is updated to call out the dev/test-only contract and to
+  recommend production alternatives (managed secret services, OS
+  keyring planned for v0.2). No API changes.
+
 - `KaosTool.validate_inputs` now performs primitive JSON Schema type
   checks (string, integer, number, boolean, array, object, null) on
   every provided input — previously only the presence of required
