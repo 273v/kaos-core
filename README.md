@@ -1,13 +1,27 @@
 # kaos-core
 
+> **Part of [Kelvin Agentic OS](https://kelvin.legal) (KAOS)** — open agentic
+> infrastructure for legal work, built by
+> [273 Ventures](https://273ventures.com).
+> See the [full KAOS package map](https://github.com/273v) for the rest of the stack.
+
 [![PyPI - Version](https://img.shields.io/pypi/v/kaos-core)](https://pypi.org/project/kaos-core/)
 [![Python](https://img.shields.io/pypi/pyversions/kaos-core)](https://pypi.org/project/kaos-core/)
 [![License](https://img.shields.io/pypi/l/kaos-core)](https://github.com/273v/kaos-core/blob/main/LICENSE)
 [![CI](https://github.com/273v/kaos-core/actions/workflows/ci.yml/badge.svg)](https://github.com/273v/kaos-core/actions/workflows/ci.yml)
 
-`kaos-core` is the foundational runtime for the **Kelvin Agentic Operating System (KAOS)** — an MCP-native type system, runtime container, registries, execution engine, agent primitives, and virtual filesystem.
+`kaos-core` is the foundational runtime for KAOS modules — an MCP-native type
+system, runtime container, registries, execution engine, agent primitives, and
+virtual filesystem.
 
-It is the dependency-light base every other `kaos-*` package builds on. `kaos-core` does not run servers, talk to LLMs, or extract documents — companion packages do those things. This package is what makes them all consistent.
+It is the dependency-light base every other `kaos-*` package builds on.
+`kaos-core` does not run servers, talk to LLMs, or extract documents —
+companion packages do those things. This package is what makes them all
+consistent.
+
+To expose `kaos-core` runtimes over the Model Context Protocol, add the
+companion package [`kaos-mcp`](https://github.com/273v/kaos-mcp) (ships
+separately).
 
 ## Install
 
@@ -19,9 +33,7 @@ pip install kaos-core
 
 `kaos-core` requires Python **3.13** or newer and has only five runtime
 dependencies (`click`, `cryptography`, `psutil`, `pydantic`,
-`pydantic-settings`). To expose `kaos-core` runtimes over the Model
-Context Protocol, add the companion package
-[`kaos-mcp`](https://github.com/273v/kaos-mcp) (ships separately).
+`pydantic-settings`).
 
 ## Quick start
 
@@ -80,15 +92,10 @@ The package is built around six small, composable primitives.
 | **Artifacts** | Three-tier policy for results of varying size. `INLINE_THRESHOLD = 16 KB` (inline acceptable), `SUMMARY_THRESHOLD = 256 KB` (summary inline + resource link), larger values move by handle (`kaos://artifacts/...`). Use `ArtifactManifest.to_tool_result()` to auto-select the tier. |
 | **Virtual filesystem** | Flat S3-style namespace (`VirtualFileSystem`) with memory and disk backends. Range reads, pagination, lazy loading. Directories are emergent; `mkdir` is a no-op. |
 
-For detailed guidance on writing your own `kaos-*` package on top of
-this one, see the upstream [KAOS Modules](https://github.com/273v/kaos-modules)
-monorepo and the published [kaos-reference](https://github.com/273v/kaos-reference)
-example package.
-
 ## CLI
 
-`kaos-core` ships a `kaos-core` administrative CLI. Every command
-supports `--json` for machine-readable output:
+`kaos-core` ships a `kaos-core` administrative CLI. Every command supports
+`--json` for machine-readable output:
 
 ```bash
 kaos-core tools list                              # registered tools
@@ -102,26 +109,40 @@ kaos-core vfs ls /artifacts/                      # VFS contents
 
 | Aspect | |
 |---|---|
-| **Python** | 3.13, 3.14 |
-| **OS** | Linux, macOS, Windows (pure Python wheel; no native code) |
-| **Maturity** | Alpha. The public API is intentionally narrow and is documented in `kaos_core.__all__` (105 symbols). |
-| **Stability policy** | Pre-1.0: minor bumps may change behaviour. We document every change in [`CHANGELOG.md`](CHANGELOG.md). The MCP tool surface and the `KAOS_<MOD>_*` environment variable namespace are public API and follow the same policy. |
-| **Test coverage** | 218 unit tests, 90% line coverage on 2,856 statements. |
+| **Python** | 3.13, 3.14 (informational matrix entries for 3.14t free-threaded and 3.15-dev) |
+| **OS** | Linux, macOS, Windows (pure-Python wheel; no native code) |
+| **Maturity** | Alpha. The public API is documented in `kaos_core.__all__` (105 symbols). |
+| **Stability policy** | Pre-1.0: minor bumps may change behaviour. Every change is documented in [`CHANGELOG.md`](CHANGELOG.md). The MCP tool surface and the `KAOS_<MOD>_*` environment-variable namespace are public API and follow the same policy. |
+| **Test coverage** | 267 unit tests, 90% line coverage on 2,856 statements. |
 | **Type checker** | Validated with [`ty`](https://docs.astral.sh/ty/), Astral's Python type checker. |
 
 ## Companion packages
 
-`kaos-core` is the foundation; the broader KAOS platform layers on top:
+`kaos-core` is one of the packages in the
+[Kelvin Agentic OS](https://kelvin.legal). The broader stack:
 
-- [`kaos-mcp`](https://github.com/273v/kaos-mcp) — FastMCP server bridge, `kaos` management CLI, MCP resource templates
-- [`kaos-content`](https://github.com/273v/kaos-content) — typed document AST (Block/Inline + provenance) for every extractor
-- [`kaos-pdf`](https://github.com/273v/kaos-pdf) · [`kaos-web`](https://github.com/273v/kaos-web) · [`kaos-office`](https://github.com/273v/kaos-office) · [`kaos-tabular`](https://github.com/273v/kaos-tabular) · [`kaos-source`](https://github.com/273v/kaos-source) — extraction packages
-- [`kaos-llm-client`](https://github.com/273v/kaos-llm-client) · [`kaos-llm-core`](https://github.com/273v/kaos-llm-core) — LLM transport and typed LLM programming
-- [`kaos-agents`](https://github.com/273v/kaos-agents) · [`kaos-citations`](https://github.com/273v/kaos-citations) — agentic runtime and legal-citation pipeline
+| Package | Layer | What it does |
+|---|---|---|
+| [`kaos-core`](https://github.com/273v/kaos-core) | Core | Foundational runtime, MCP-native types, registries, execution engine, VFS |
+| [`kaos-content`](https://github.com/273v/kaos-content) | Core | Typed document AST: Block/Inline, provenance, views |
+| [`kaos-mcp`](https://github.com/273v/kaos-mcp) | Bridge | FastMCP server, `kaos` management CLI, MCP resource templates |
+| [`kaos-pdf`](https://github.com/273v/kaos-pdf) | Extraction | PDF → AST with provenance |
+| [`kaos-web`](https://github.com/273v/kaos-web) | Extraction | Web extraction, browser automation, search, domain intelligence |
+| [`kaos-office`](https://github.com/273v/kaos-office) | Extraction | DOCX / PPTX / XLSX readers + writers to AST |
+| [`kaos-tabular`](https://github.com/273v/kaos-tabular) | Extraction | DuckDB-powered SQL analytics |
+| [`kaos-source`](https://github.com/273v/kaos-source) | Data | Government + financial data connectors (Federal Register, eCFR, EDGAR, GovInfo, PACER, GLEIF) |
+| [`kaos-llm-client`](https://github.com/273v/kaos-llm-client) | LLM | Multi-provider LLM transport |
+| [`kaos-llm-core`](https://github.com/273v/kaos-llm-core) | LLM | Typed LLM programming (Signatures, Programs, Optimizers) |
+| [`kaos-nlp-core`](https://github.com/273v/kaos-nlp-core) | Primitives (Rust) | High-performance NLP primitives |
+| [`kaos-nlp-transformers`](https://github.com/273v/kaos-nlp-transformers) | ML | Dense embeddings + retrieval |
+| [`kaos-graph`](https://github.com/273v/kaos-graph) | Primitives (Rust) | Graph algorithms + RDF/SPARQL |
+| [`kaos-ml-core`](https://github.com/273v/kaos-ml-core) | Primitives (Rust) | Classical ML on the document AST |
+| [`kaos-citations`](https://github.com/273v/kaos-citations) | Legal | Legal citation extraction, resolution, verification |
+| [`kaos-agents`](https://github.com/273v/kaos-agents) | Agentic | Agent runtime, memory, recipes |
+| [`kaos-reference`](https://github.com/273v/kaos-reference) | Sample | Reference module for module authors |
 
-Each package has its own GitHub repository and PyPI distribution; they
-share `kaos-core` as a dependency rather than a build-time link, so
-mixing versions is supported within the SemVer compatibility window.
+Packages depend on `kaos-core`; everything else is opt-in. Mix and match the
+ones you need.
 
 ## Development
 
@@ -131,8 +152,8 @@ cd kaos-core
 uv sync --group dev
 ```
 
-Install pre-commit hooks (recommended — they run the same checks as CI
-on every commit, scoped to staged files):
+Install pre-commit hooks (recommended — they run the same checks as CI on
+every commit, scoped to staged files):
 
 ```bash
 uvx pre-commit install
@@ -146,35 +167,32 @@ uv run ruff format --check kaos_core tests
 uv run ruff check kaos_core tests
 uv run ty check kaos_core tests
 uv run pytest -m "not live and not network and not slow"
-uv run python benchmarks/benchmark_core.py
 ```
 
 ## Build from source
 
 ```bash
 uv build
-uv pip install dist/kaos_core-*.whl
-```
-
-Or install editable from the module root:
-
-```bash
-uv pip install -e .
+uv pip install dist/*.whl
 ```
 
 ## Contributing
 
 Issues and pull requests are welcome. By contributing you certify the
-[Developer Certificate of Origin v1.1](https://developercertificate.org/);
-sign every commit with `git commit -s`. Please open an issue before
-starting on a non-trivial change so we can align on scope.
+[Developer Certificate of Origin v1.1](https://developercertificate.org/) —
+sign every commit with `git commit -s`. Please open an issue before starting
+on a non-trivial change so we can align on scope.
 
-For security issues, see [SECURITY.md](SECURITY.md) — please report
-privately via [GitHub Private Vulnerability Reporting](https://github.com/273v/kaos-core/security/advisories/new)
-rather than opening a public issue.
+## Security
+
+For security issues, **please do not file a public issue**. Report privately
+via [GitHub Private Vulnerability Reporting](https://github.com/273v/kaos-core/security/advisories/new)
+or email **security@273ventures.com**. See [SECURITY.md](SECURITY.md) for the
+full disclosure policy.
 
 ## License
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-Copyright 2026 273 Ventures LLC.
+Copyright 2026 [273 Ventures LLC](https://273ventures.com).
+Built for [kelvin.legal](https://kelvin.legal).
