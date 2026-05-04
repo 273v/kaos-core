@@ -33,9 +33,23 @@ First public alpha release.
 - Structured logging via `kaos_core.logging.get_logger()` with auto-prefix
   to the `kaos.*` hierarchy.
 - 10 built-in MCP tools registered via `register_core_tools()`.
-- CLI entrypoints `kaos-core` (administrative) and `kaos-core-serve`
-  (MCP server).
+- CLI entrypoint `kaos-core` (administrative).
 - Python 3.13 and 3.14 support.
+
+### Removed
+
+- `kaos-core-serve` script entry point and `kaos_core.serve` module —
+  exposing tools over the Model Context Protocol is the responsibility
+  of the companion package
+  [`kaos-mcp`](https://github.com/273v/kaos-mcp), which ships separately.
+  Bundling a stub server in `kaos-core` whose only resolution path went
+  through `kaos-mcp` was a misleading dependency contract.
+- `[mcp]` and `[pydantic-ai]` optional dependencies. Neither was
+  imported anywhere in `kaos_core/`; the extras advertised integrations
+  that belong to higher-level packages.
+- `docs/PRD.md` and `docs/TODO.md`. These were monorepo design notes
+  whose claims had drifted from shipped behavior. Design history will
+  be reintroduced via the documentation site.
 
 ### License
 

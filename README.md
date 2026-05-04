@@ -14,12 +14,9 @@ uv add kaos-core
 pip install kaos-core
 ```
 
-Optional extras:
-
-```bash
-uv add 'kaos-core[mcp]'           # MCP server runtime
-uv add 'kaos-core[pydantic-ai]'   # pydantic-ai integration
-```
+To expose `kaos-core` runtimes over the Model Context Protocol, install the
+companion package [`kaos-mcp`](https://github.com/273v/kaos-mcp) (ships
+separately).
 
 ## Design Summary
 
@@ -82,13 +79,14 @@ uv pip install -e .
 
 Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
-## Package Layout
+## What's in the package
 
-The package layout follows the PRD in [`docs/PRD.md`](docs/PRD.md). The current implementation includes:
-
-- Core protocol and metadata models
+- Core protocol and metadata models (MCP-native)
 - Runtime-scoped tool, resource, and prompt registries
 - Execution engine and workflow executor
-- Agent models including sampling, elicitation, delegation, and experimental task management
+- Agent primitives: sampling, elicitation, delegation, and experimental task management
 - Virtual file system with memory and disk backends
-- Documentation and schema export helpers
+- Schema-export helpers (JSON Schema, OpenAPI, MCP manifest)
+- Three-tier artifact policy (inline / summary / handle)
+- `ModuleSettings` typed-settings base class with six-level resolution
+- Structured logging via `kaos_core.logging.get_logger()`

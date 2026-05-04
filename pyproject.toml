@@ -41,14 +41,6 @@ dependencies = [
   "pydantic-settings>=2.8.1",
 ]
 
-[project.optional-dependencies]
-mcp = [
-  "mcp>=1.26.0",
-]
-pydantic-ai = [
-  "pydantic-ai-slim[mcp]>=1.70.0",
-]
-
 [dependency-groups]
 dev = [
   "pytest>=8.3.5",
@@ -61,7 +53,6 @@ dev = [
 
 [project.scripts]
 kaos-core = "kaos_core.cli:main"
-kaos-core-serve = "kaos_core.serve:main"
 
 [project.urls]
 Homepage = "https://kelvin.legal"
@@ -80,7 +71,6 @@ include = [
   "/CHANGELOG.md",
   "/LICENSE",
   "/NOTICE",
-  "/docs",
   "/tests",
   "/benchmarks",
 ]
