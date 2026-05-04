@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a new capability or improvement for kaos-core
+title: "[feat] "
+labels: ["type:feat", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the use case, not the implementation.
+      placeholder: I'm trying to do X and the current API forces me to Y.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Optional. If you already have an API or implementation in mind, sketch it here.
+      render: python
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What workarounds did you try, and why aren't they enough?

@@ -1,0 +1,36 @@
+# Build / dist
+build/
+dist/
+*.egg-info/
+
+# Caches
+.benchmarks/
+.coverage
+.coverage.*
+.kaos-vfs/
+.kaos-vfs-*/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ty_cache/
+.venv/
+__pycache__/
+coverage.xml
+htmlcov/
+*.pyc
+
+# OS / editor scratch
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+.kaos-credentials.json
