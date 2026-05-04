@@ -75,10 +75,31 @@ jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    # Stable matrix entries gate PRs; experimental entries
+    # (3.14t free-threaded, 3.15-dev pre-release) are informational
+    # only — the matrix `experimental: true` flag flips
+    # `continue-on-error` so CI is not blocked by upstream churn we
+    # cannot fix.
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.13", "3.14"]
+        include:
+          - python-version: "3.13"
+            experimental: false
+          - python-version: "3.14"
+            experimental: false
+          # Free-threaded build (PEP 703). Available since 3.14 GA.
+          # We don't yet ship `Py_GIL_DISABLED` extensions, but we want
+          # early signal that pure-Python imports + tests still work
+          # without the GIL.
+          - python-version: "3.14t"
+            experimental: true
+          # Pre-release of 3.15 (expected GA October 2026). Catches
+          # ecosystem incompatibilities (deferred annotations, removed
+          # APIs) before consumers hit them.
+          - python-version: "3.15"
+            experimental: true
+    continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -90,7 +111,10 @@ jobs:
           cache-dependency-glob: uv.lock
 
       - name: Install Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }}
+        # `--preview` lets `uv python install` resolve in-development
+        # interpreters (3.15) and the free-threaded variant (3.14t).
+        # No-op for stable versions.
+        run: uv python install --preview ${{ matrix.python-version }}
 
       - name: Install dependencies
         run: uv sync --group dev --python ${{ matrix.python-version }}
@@ -105,7 +129,7 @@ jobs:
             --cov-report=xml:coverage.xml
 
       - name: Upload coverage report
-        if: always()
+        if: always() && !matrix.experimental
         uses: actions/upload-artifact@v4
         with:
           name: coverage-${{ matrix.python-version }}

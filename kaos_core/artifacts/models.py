@@ -122,6 +122,9 @@ class ArtifactManifest(KaosModel):
             content.append(link)
 
         return ToolResult(
-            content=content,  # type: ignore[arg-type]
+            # `list` is invariant in its parameter; the local
+            # `list[TextContent | ResourceLinkContent]` cannot widen to
+            # `list[ContentType]` even though every element is assignable.
+            content=content,  # ty: ignore[invalid-argument-type]
             structuredContent=structured_content,
         )

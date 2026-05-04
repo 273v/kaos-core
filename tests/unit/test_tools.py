@@ -523,7 +523,7 @@ class TestCredentialsCheckTool:
         def patched_init(self: Any, path: Any = None) -> None:
             original_init(self, path=tmp_path / "creds.json")
 
-        CredentialStore.__init__ = patched_init  # type: ignore[assignment]
+        CredentialStore.__init__ = patched_init  # ty: ignore[invalid-assignment]
         try:
             result = await tool.execute(
                 {"module": "test-mod", "service": "test-svc"},
@@ -535,4 +535,4 @@ class TestCredentialsCheckTool:
             result_text = result.text or ""
             assert "secret-value" not in result_text
         finally:
-            CredentialStore.__init__ = original_init  # type: ignore[assignment]
+            CredentialStore.__init__ = original_init  # ty: ignore[invalid-assignment]

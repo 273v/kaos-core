@@ -19,10 +19,15 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # ────────────── gitleaks ──────────────
-  # Full-history secret scan on every PR and on a weekly schedule.
-  # Failure modes: a real secret in history (must be rotated and
-  # rewritten) or a false positive (allowlist via .gitleaksignore).
+  # ────────────── gitleaks (CLI, license-free) ──────────────
+  # `gitleaks/gitleaks-action@v2` requires a paid license for
+  # organization-owned repositories as of late 2025. The gitleaks CLI
+  # itself is MIT-licensed and free; we run it directly via the
+  # official Docker image so there is no license, no rate limit, and
+  # no third-party action in our supply chain for this scan.
+  #
+  # Rule scope: the default open-source ruleset, plus any project-local
+  # overrides in `.gitleaks.toml` and `.gitleaksignore`.
   gitleaks:
     name: gitleaks (secret scan)
     runs-on: ubuntu-latest
@@ -32,15 +37,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          # GitHub auto-injects this; we don't use the GitHub-token
-          # protect-mode features, but the action emits a warning
-          # without it.
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # The free, open-source gitleaks ruleset is permissive enough
-          # for our needs — no GITLEAKS_LICENSE required.
+      - name: Run gitleaks (Docker, no license required)
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo \
+            zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --redact \
+            --no-banner \
+            --verbose \
+            --exit-code 1
 
   # ────────────── pip-audit ──────────────
   # Scan the locked dependency set for known CVEs. PyPA-maintained

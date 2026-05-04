@@ -63,7 +63,9 @@ class ToolResult(KaosModel):
         meta = kwargs.pop("_meta", kwargs.pop("meta", None))
         if isinstance(error, ErrorInfo):
             meta = {**(meta or {}), "error": error.model_dump(exclude_none=True)}
-        return cls(content=content, isError=True, meta=meta, **kwargs)
+        # `meta` is a pydantic alias for `_meta` (populate_by_name=True);
+        # ty does not yet read pydantic config so it flags the kwarg.
+        return cls(content=content, isError=True, meta=meta, **kwargs)  # ty: ignore[unknown-argument]
 
     @classmethod
     def create_text(cls, text: str, **kwargs: Any) -> ToolResult:

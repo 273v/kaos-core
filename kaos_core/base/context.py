@@ -144,7 +144,7 @@ class KaosContext:
         Returns:
             A settings instance with context overrides applied.
         """
-        return cls.from_context(self)  # type: ignore[attr-defined]
+        return cls.from_context(self)  # ty: ignore[unresolved-attribute]
 
     async def read_resource(self, uri: str) -> Any:
         if self.runtime is None:

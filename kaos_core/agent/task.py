@@ -55,9 +55,12 @@ class TaskManager:
         )
         if self._executor is not None:
             self._handles[definition.task_id] = asyncio.create_task(self._run(definition))
+        # `meta` is a pydantic alias for `_meta` (populate_by_name=True);
+        # ty does not yet read pydantic config, so the kwarg is reported
+        # as unknown even though it is accepted at runtime.
         return CreateTaskResult(
             task_id=definition.task_id,
-            meta={"io.modelcontextprotocol/related-task": definition.task_id},
+            meta={"io.modelcontextprotocol/related-task": definition.task_id},  # ty: ignore[unknown-argument]
         )
 
     async def _run(self, definition: TaskDefinition) -> None:
