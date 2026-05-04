@@ -77,6 +77,18 @@ class VFSPath:
         ]
 
     async def mkdir(self) -> None:
+        """No-op for the flat-namespace VFS.
+
+        ``VirtualFileSystem`` uses a flat key-value namespace (S3-style):
+        directories are implicit and exist exactly when at least one path
+        beneath them exists. Calling ``mkdir`` on an empty path therefore
+        has no effect; the directory will appear lazily on the first
+        ``write_bytes``/``write_text`` to a child path.
+
+        The method is preserved so :class:`VFSPath` stays compatible with
+        :class:`pathlib.PurePosixPath`-shaped callers that always invoke
+        ``mkdir`` defensively.
+        """
         return None
 
     async def stat(self) -> VFSMetadata:

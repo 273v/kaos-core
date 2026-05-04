@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `SchemaExporter.export_openapi` now produces a valid OpenAPI 3.1.0
+  document. Previously the output was missing the required ``info``
+  object and operations had no ``responses``, which is invalid per
+  https://spec.openapis.org/oas/v3.1.0.html. Each generated operation
+  now also carries a unique ``operationId`` (hyphens replaced with
+  underscores so the value is a valid Python identifier for code
+  generators) and a ``tags`` entry sourced from the tool's
+  ``module_name``. The method gained ``title``, ``version``, and
+  ``description`` keyword-only parameters; the version defaults to the
+  installed ``kaos-core`` version.
+
+### Documented
+
+- `VFSPath.mkdir` is now documented as a no-op for the flat-namespace
+  VFS (directories are emergent S3-style; the method is preserved for
+  ``pathlib.PurePosixPath`` API parity). No behaviour change.
+
 ### Changed
 
 - `CredentialStore` now writes credential files atomically (sibling
