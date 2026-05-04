@@ -51,7 +51,6 @@ pydantic-ai = [
 
 [dependency-groups]
 dev = [
-  "kaos-mcp>=0.1.0",
   "pytest>=8.3.5",
   "pytest-asyncio>=0.26.0",
   "pytest-benchmark>=5.1.0",
@@ -139,6 +138,3 @@ include = ["kaos_core", "tests"]
 
 [tool.uv]
 package = true
-
-[tool.uv.sources]
-kaos-mcp = { path = "../kaos-mcp", editable = true }
