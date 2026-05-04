@@ -4,16 +4,9 @@ on:
   push:
     tags:
       - "v*"
+  # Manual fallback so a failed publish (e.g. a transient PyPI 5xx) can
+  # be retried without re-tagging.
   workflow_dispatch:
-    inputs:
-      pypi_target:
-        description: "Where to publish (testpypi or pypi)"
-        required: true
-        default: "testpypi"
-        type: choice
-        options:
-          - testpypi
-          - pypi
 
 permissions:
   contents: read
@@ -31,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
@@ -56,13 +51,6 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Read version (manual dispatch)
-        if: github.event_name == 'workflow_dispatch'
-        run: |
-          VERSION=$(uv run python -c "from kaos_core._version import __version__; print(__version__)")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        id: version_dispatch
-
       - name: Pre-publish QA
         run: |
           uv run ruff format --check kaos_core tests
@@ -74,7 +62,20 @@ jobs:
         run: uv build
 
       - name: Verify metadata
-        run: uvx --from twine twine check dist/*
+        run: uvx --from twine twine check --strict dist/*
+
+      - name: Smoke-test the built wheel in a clean venv
+        run: |
+          uv venv --python 3.13 /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/kaos_core-*-py3-none-any.whl
+          /tmp/smoke/bin/python -c "
+          import kaos_core
+          from kaos_core import KaosRuntime, register_core_tools
+          rt = KaosRuntime()
+          n = register_core_tools(rt)
+          assert n > 0
+          print(f'kaos-core {kaos_core.__version__}: {n} core tools registered')
+          "
 
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
@@ -83,43 +84,16 @@ jobs:
           path: dist/
           retention-days: 30
 
-  publish-testpypi:
-    name: Publish to TestPyPI
-    needs: build
-    if: |
-      startsWith(github.ref, 'refs/tags/v') ||
-      (github.event_name == 'workflow_dispatch' && inputs.pypi_target == 'testpypi')
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/kaos-core
-    permissions:
-      id-token: write  # OIDC for Trusted Publishing
-    steps:
-      - name: Download distribution artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: dist
-          path: dist/
-
-      - name: Publish to TestPyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
-          attestations: true
-          skip-existing: false
-
   publish-pypi:
     name: Publish to PyPI
     needs: build
-    if: |
-      github.event_name == 'workflow_dispatch' && inputs.pypi_target == 'pypi'
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/kaos-core
     permissions:
-      id-token: write
+      id-token: write  # OIDC for Trusted Publishing
     steps:
       - name: Download distribution artifacts
         uses: actions/download-artifact@v4
@@ -139,7 +113,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # to create release
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v5

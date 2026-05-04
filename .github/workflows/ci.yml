@@ -14,6 +14,64 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  # ────────────── lint ──────────────
+  # Separate from tests so format / lint / type failures fail-fast and
+  # are easy to spot without combing through test output.
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --group dev --python 3.13
+
+      - name: Ruff format check
+        run: uv run ruff format --check kaos_core tests
+
+      - name: Ruff lint
+        run: uv run ruff check kaos_core tests
+
+      - name: Type check (ty)
+        run: uv run ty check kaos_core tests
+
+  # ────────────── pre-commit ──────────────
+  # Catches any drift between the local pre-commit config and the
+  # checks above. If a contributor disabled their local hooks, this
+  # job still enforces the contract on the PR.
+  pre-commit:
+    name: Pre-commit hooks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies (needed by the local ty hook)
+        run: uv sync --group dev --python 3.13
+
+      - name: Run pre-commit
+        run: uvx pre-commit run --all-files --show-diff-on-failure
+
+  # ────────────── test ──────────────
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
@@ -37,22 +95,56 @@ jobs:
       - name: Install dependencies
         run: uv sync --group dev --python ${{ matrix.python-version }}
 
-      - name: Ruff format check
-        run: uv run ruff format --check kaos_core tests
+      - name: Run tests with coverage
+        run: |
+          uv run pytest \
+            -m "not live and not network and not slow" \
+            --cov=kaos_core \
+            --cov-branch \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml
 
-      - name: Ruff lint
-        run: uv run ruff check kaos_core tests
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.python-version }}
+          path: coverage.xml
+          retention-days: 14
 
-      - name: Type check (ty)
-        run: uv run ty check kaos_core tests
-
-      - name: Tests
-        run: uv run pytest -m "not live and not network and not slow" --no-cov
-
-  build:
-    name: Build distribution
+  # ────────────── min-deps ──────────────
+  # Resolve and test against the minimum declared versions of every
+  # dependency so we catch "we said >=X but actually need X+1" drift.
+  # Runs on 3.13 only; 3.14 is the cutting edge and may not have wheels
+  # for very old dep versions.
+  min-deps:
+    name: Test against minimum dependencies
     runs-on: ubuntu-latest
-    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install with lowest-direct resolution
+        run: uv sync --group dev --resolution=lowest-direct --python 3.13
+
+      - name: Run tests
+        run: |
+          uv run pytest \
+            -m "not live and not network and not slow" \
+            --no-cov \
+            -q
+
+  # ────────────── build + wheel smoke test ──────────────
+  build:
+    name: Build distribution + smoke test
+    runs-on: ubuntu-latest
+    needs: [lint, test]
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -69,11 +161,44 @@ jobs:
       - name: Build wheel + sdist
         run: uv build
 
-      - name: Verify metadata
-        run: |
-          uvx --from twine twine check dist/*
+      - name: Verify metadata (twine check)
+        run: uvx --from twine twine check --strict dist/*
 
-      - name: Upload artifacts
+      - name: Smoke-test the built wheel in a clean venv
+        # Install the actually-built wheel (not the source tree) into a
+        # clean Python environment and exercise the public API. This
+        # catches packaging bugs that source-tree tests miss: missing
+        # data files, broken `__init__.py` exports, sdist-only files
+        # that reference dist-only paths, etc.
+        run: |
+          uv venv --python 3.13 /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/kaos_core-*-py3-none-any.whl
+          /tmp/smoke/bin/python -c "
+          import kaos_core
+          assert kaos_core.__version__, 'version missing from wheel'
+          # All 100+ public symbols import without error.
+          from kaos_core import (
+              ArtifactManifest,
+              KaosContext,
+              KaosRuntime,
+              KaosTool,
+              ModuleSettings,
+              SchemaExporter,
+              ToolResult,
+              VirtualFileSystem,
+              kaos_tool,
+              register_core_tools,
+          )
+          # Runtime container resolves and core tools register.
+          rt = KaosRuntime()
+          n = register_core_tools(rt)
+          assert n > 0, 'no core tools registered'
+          print(f'kaos-core {kaos_core.__version__}: {n} core tools registered')
+          "
+          # Exercise the CLI entrypoint.
+          /tmp/smoke/bin/kaos-core --help
+
+      - name: Upload distribution artifacts
         uses: actions/upload-artifact@v4
         with:
           name: dist-${{ github.sha }}

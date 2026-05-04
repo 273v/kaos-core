@@ -1,0 +1,81 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    # Weekly Monday 02:00 UTC — re-scan in case a new CVE landed against
+    # an existing pinned dependency.
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # ────────────── gitleaks ──────────────
+  # Full-history secret scan on every PR and on a weekly schedule.
+  # Failure modes: a real secret in history (must be rotated and
+  # rewritten) or a false positive (allowlist via .gitleaksignore).
+  gitleaks:
+    name: gitleaks (secret scan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          # GitHub auto-injects this; we don't use the GitHub-token
+          # protect-mode features, but the action emits a warning
+          # without it.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The free, open-source gitleaks ruleset is permissive enough
+          # for our needs — no GITLEAKS_LICENSE required.
+
+  # ────────────── pip-audit ──────────────
+  # Scan the locked dependency set for known CVEs. PyPA-maintained
+  # tooling that consults the Python Packaging Advisory Database (PyPA)
+  # plus OSV.
+  pip-audit:
+    name: pip-audit (dependency CVEs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --group dev --python 3.13
+
+      - name: Export installed dependency set to requirements.txt
+        # pip-audit reads requirements.txt; uv export gives us the
+        # exact resolved set, locked to versions, including
+        # transitive dependencies.
+        run: uv export --no-hashes --no-emit-project --format requirements-txt > /tmp/requirements.txt
+
+      - name: Run pip-audit
+        # `--strict` makes the action fail on any vulnerability, even
+        # warnings. We can switch to `--no-strict` and rely on the
+        # GitHub annotation for advisory mode if this turns out to be
+        # too noisy in practice.
+        uses: pypa/gh-action-pip-audit@v1.1.0
+        with:
+          inputs: /tmp/requirements.txt
