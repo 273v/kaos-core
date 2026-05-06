@@ -1,0 +1,34 @@
+{
+  "test_command": [
+    "uv",
+    "run",
+    "pytest",
+    "-m",
+    "not live and not network and not slow",
+    "--junitxml={artifacts}/pytest-junit.xml",
+    "--cov=kaos_core",
+    "--cov-branch",
+    "--cov-report=term-missing",
+    "--cov-report=xml:{artifacts}/coverage.xml"
+  ],
+  "test_result_globs": [
+    "{artifacts}/pytest-junit.xml"
+  ],
+  "coverage_result_globs": [
+    "{artifacts}/coverage.xml"
+  ],
+  "build_command": [
+    "uv",
+    "build",
+    "--wheel",
+    "--out-dir",
+    "{artifacts}"
+  ],
+  "artifact_globs": [
+    "{artifacts}/*.whl"
+  ],
+  "compatibility_policy": "pure-python",
+  "requires_python": ">=3.13",
+  "timeout_seconds": 900,
+  "log_limit_bytes": 262144
+}
