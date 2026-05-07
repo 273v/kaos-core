@@ -13,6 +13,9 @@ license-files = ["LICENSE", "NOTICE"]
 authors = [
   { name = "273 Ventures LLC", email = "it@273ventures.com" },
 ]
+maintainers = [
+  { name = "Michael Bommarito", email = "mike@273ventures.com" },
+]
 keywords = [
   "agentic",
   "mcp",
