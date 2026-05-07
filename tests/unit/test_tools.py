@@ -513,6 +513,9 @@ class TestCredentialsCheckTool:
             context=None,
         )
         assert result.isError
+        assert result.text is not None
+        assert "kaos-core-serve" not in result.text
+        assert "kaos-mcp" in result.text
 
     async def test_credential_not_found(self, tmp_path: Path) -> None:
         tool = CredentialsCheckTool()

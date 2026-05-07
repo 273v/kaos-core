@@ -38,7 +38,8 @@ _CORE_ANNOTATIONS = ToolAnnotations(
 
 _NO_RUNTIME_ERROR = (
     "No runtime context. This tool requires a running KAOS server. "
-    "Start a server with 'kaos-core-serve' or register tools with a KaosRuntime."
+    "Expose the runtime through the companion 'kaos-mcp' package or register tools "
+    "with a KaosRuntime before calling this tool."
 )
 
 _CATEGORY_ENUM = [e.value for e in ToolCategory]
