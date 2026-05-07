@@ -84,6 +84,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tools. 4 regression tests added in
   ``tests/unit/test_decorator_boundary.py``.
 
+- ``CredentialsCheckTool`` now resolves the file-backed
+  ``CredentialStore`` path from ``KaosSettings.credential_store_path`` via
+  ``KaosContext.get_config()``, so runtimes and per-call contexts can
+  redirect the development credential store without constructor
+  monkeypatching. 1 regression test added in ``tests/unit/test_tools.py``.
+
 - `CredentialStore` now writes credential files atomically (sibling
   temp file + ``fsync`` + ``os.replace``) and sets file mode ``0o600``
   on every write. Parent directories are created if missing. The class
