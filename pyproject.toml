@@ -34,11 +34,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  # cryptography >=46.0.7 forces past CVE-2026-34073 / CVE-2026-39892
-  # (DNS name-constraint bypass + non-contiguous-buffer overflow).
   "click>=8.1.8",
-  "cryptography>=46.0.7",
-  "psutil>=6.1.1",
   "pydantic>=2.11.0",
   "pydantic-settings>=2.8.1",
 ]

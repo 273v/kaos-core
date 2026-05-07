@@ -31,9 +31,8 @@ uv add kaos-core
 pip install kaos-core
 ```
 
-`kaos-core` requires Python **3.13** or newer and has only five runtime
-dependencies (`click`, `cryptography`, `psutil`, `pydantic`,
-`pydantic-settings`).
+`kaos-core` requires Python **3.13** or newer and has only three runtime
+dependencies (`click`, `pydantic`, `pydantic-settings`).
 
 ## Quick start
 

@@ -51,7 +51,7 @@ TOOL_CLASSES: list[type[KaosTool]] = [
 
 def _make_runtime(tmp_path: Path) -> KaosRuntime:
     """Create a runtime with disk-backed VFS for testing."""
-    settings = KaosSettings()
+    settings = KaosSettings(credential_store_path=tmp_path / "creds.json")
     runtime = KaosRuntime(config=settings)
     runtime.vfs = VirtualFileSystem(
         VFSConfig(default_backend=StorageBackend.DISK, disk_base_path=tmp_path / "vfs")
@@ -513,6 +513,9 @@ class TestCredentialsCheckTool:
             context=None,
         )
         assert result.isError
+        assert result.text is not None
+        assert "kaos-core-serve" not in result.text
+        assert "kaos-mcp" in result.text
 
     async def test_credential_not_found(self, tmp_path: Path) -> None:
         tool = CredentialsCheckTool()
@@ -532,30 +535,41 @@ class TestCredentialsCheckTool:
     async def test_credential_found(self, tmp_path: Path) -> None:
         from kaos_core.config.credentials import CredentialStore
 
-        store = CredentialStore(path=tmp_path / "creds.json")
+        runtime = _make_runtime(tmp_path)
+        store = CredentialStore(path=runtime.settings.credential_store_path)
         store.set("test-mod", "test-svc", "default", "secret-value")
+
+        tool = CredentialsCheckTool()
+        context = _make_context(runtime)
+
+        result = await tool.execute(
+            {"module": "test-mod", "service": "test-svc"},
+            context=context,
+        )
+        assert not result.isError
+        data = result.require_structured()
+        assert data["exists"] is True
+        # Verify the actual value is NEVER exposed
+        result_text = result.text or ""
+        assert "secret-value" not in result_text
+
+    async def test_credential_path_can_be_overridden_by_context(self, tmp_path: Path) -> None:
+        from kaos_core.config.credentials import CredentialStore
+
+        override_path = tmp_path / "override-creds.json"
+        store = CredentialStore(path=override_path)
+        store.set("override-mod", "override-svc", "default", "secret-value")
 
         tool = CredentialsCheckTool()
         runtime = _make_runtime(tmp_path)
         context = _make_context(runtime)
+        context.set_config("credential_store_path", override_path)
 
-        # Temporarily point to the test credential store
-        original_init = CredentialStore.__init__
+        result = await tool.execute(
+            {"module": "override-mod", "service": "override-svc"},
+            context=context,
+        )
 
-        def patched_init(self: Any, path: Any = None) -> None:
-            original_init(self, path=tmp_path / "creds.json")
-
-        CredentialStore.__init__ = patched_init  # ty: ignore[invalid-assignment]
-        try:
-            result = await tool.execute(
-                {"module": "test-mod", "service": "test-svc"},
-                context=context,
-            )
-            assert not result.isError
-            data = result.require_structured()
-            assert data["exists"] is True
-            # Verify the actual value is NEVER exposed
-            result_text = result.text or ""
-            assert "secret-value" not in result_text
-        finally:
-            CredentialStore.__init__ = original_init  # ty: ignore[invalid-assignment]
+        assert not result.isError
+        data = result.require_structured()
+        assert data["exists"] is True

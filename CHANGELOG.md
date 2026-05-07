@@ -55,6 +55,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Core MCP tools no longer tell callers to start the removed
+  ``kaos-core-serve`` entry point when no runtime context is attached.
+  The error guidance now points to the companion ``kaos-mcp`` package or
+  explicit ``KaosRuntime`` registration.
+
+- The end-to-end integration test now carries the registered
+  ``integration`` marker explicitly, keeping marker-based selection in
+  sync with the test directory layout.
+
 - `SchemaExporter.export_openapi` now produces a valid OpenAPI 3.1.0
   document. Previously the output was missing the required ``info``
   object and operations had no ``responses``, which is invalid per
@@ -73,6 +82,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ``pathlib.PurePosixPath`` API parity). No behaviour change.
 
 ### Changed
+
+- Decorated tools created with ``@kaos_tool`` now default to explicit
+  registration (``auto_register=False``), synthesize default
+  ``ToolAnnotations`` when none are provided, return structured dict
+  outputs with a text summary, and translate wrapped-function failures
+  into ``ToolResult.create_error()`` instead of raising
+  ``ToolExecutionError`` from ``execute()``. This keeps decorator-created
+  tools aligned with the MCP boundary contract used by concrete core
+  tools. 4 regression tests added in
+  ``tests/unit/test_decorator_boundary.py``.
+
+- ``CredentialsCheckTool`` now resolves the file-backed
+  ``CredentialStore`` path from ``KaosSettings.credential_store_path`` via
+  ``KaosContext.get_config()``, so runtimes and per-call contexts can
+  redirect the development credential store without constructor
+  monkeypatching. 1 regression test added in ``tests/unit/test_tools.py``.
+
+- Removed unused published runtime dependencies on ``cryptography`` and
+  ``psutil``. Neither package is imported by ``kaos_core`` today; keeping
+  them in base installs widened the dependency surface without enabling a
+  shipped feature.
 
 - `CredentialStore` now writes credential files atomically (sibling
   temp file + ``fsync`` + ``os.replace``) and sets file mode ``0o600``

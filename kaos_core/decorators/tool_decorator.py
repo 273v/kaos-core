@@ -2,37 +2,52 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar, get_type_hints
+from typing import Any, ParamSpec, TypeVar, get_origin, get_type_hints
 
 from kaos_core.base.context import KaosContext
 from kaos_core.base.tool import KaosTool
-from kaos_core.exceptions import ToolExecutionError, ValidationError
+from kaos_core.exceptions import ValidationError
 from kaos_core.registry.container import KaosRuntime
 from kaos_core.types.annotations import ToolAnnotations
 from kaos_core.types.enums import ToolCapability, ToolCategory
 from kaos_core.types.metadata import ToolMetadata
 from kaos_core.types.parameters import ParameterSchema
-from kaos_core.types.results import ToolResult
+from kaos_core.types.results import ErrorInfo, ToolResult
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
 
 def _annotation_to_schema(annotation: Any) -> str:
-    origin = getattr(annotation, "__origin__", None)
-    if annotation in {str, None}:
+    origin = get_origin(annotation)
+    schema_type = origin or annotation
+    if schema_type is str:
         return "string"
-    if annotation is int:
+    if schema_type is int:
         return "integer"
-    if annotation is float:
+    if schema_type is float:
         return "number"
-    if annotation is bool:
+    if schema_type is bool:
         return "boolean"
-    if annotation in {dict, list}:
-        return str(getattr(annotation, "__name__", "string"))
-    if origin in {list, dict}:
-        return str(getattr(origin, "__name__", "string"))
+    if schema_type is dict:
+        return "object"
+    if schema_type is list:
+        return "array"
+    if schema_type is type(None):
+        return "null"
     return "string"
+
+
+def _structured_summary(tool_name: str, output: dict[str, Any]) -> str:
+    field_count = len(output)
+    suffix = "" if field_count == 1 else "s"
+    if not output:
+        return f"{tool_name} returned structured data with 0 fields."
+    keys = sorted(str(key) for key in output)[:5]
+    key_list = ", ".join(keys)
+    if field_count > len(keys):
+        key_list = f"{key_list}, ..."
+    return f"{tool_name} returned structured data with {field_count} field{suffix}: {key_list}."
 
 
 class FunctionTool(KaosTool):
@@ -73,9 +88,21 @@ class FunctionTool(KaosTool):
             if inspect.isawaitable(result):
                 result = await result
         except Exception as exc:
-            raise ToolExecutionError(
-                "Function tool execution failed", tool_name=self.metadata.name
-            ) from exc
+            return ToolResult.create_error(
+                ErrorInfo(
+                    code="function_tool_execution_failed",
+                    message=(
+                        f"Tool {self.metadata.name} failed during execution. "
+                        "Check the inputs and runtime state, then retry. "
+                        "For implementation debugging, call the wrapped function directly."
+                    ),
+                    details={
+                        "tool_name": self.metadata.name,
+                        "exception_type": type(exc).__name__,
+                        "exception": str(exc),
+                    },
+                )
+            )
         return self.validate_output(result)
 
     def validate_output(self, output: Any) -> ToolResult:
@@ -84,7 +111,10 @@ class FunctionTool(KaosTool):
         if isinstance(output, str):
             return ToolResult.create_text(output)
         if isinstance(output, dict):
-            return ToolResult.create_success(output)
+            return ToolResult.create_success(
+                output,
+                summary=_structured_summary(self.metadata.name, output),
+            )
         return ToolResult.create_text(str(output))
 
 
@@ -98,7 +128,7 @@ def kaos_tool(
     module_name: str = "decorated",
     version: str = "1.0.0",
     tags: list[str] | None = None,
-    auto_register: bool = True,
+    auto_register: bool = False,
     include_context: bool = False,
     annotations: ToolAnnotations | None = None,
 ) -> Callable[[Callable[P, R]], FunctionTool]:
@@ -137,7 +167,7 @@ def kaos_tool(
             output_schema=output_schema,
             module_name=module_name,
             version=version,
-            annotations=annotations,
+            annotations=annotations or ToolAnnotations(),
         )
         tool = FunctionTool(func, metadata=metadata, include_context=include_context)
         if auto_register:

@@ -8,6 +8,7 @@ read-only, local, and idempotent.
 from __future__ import annotations
 
 import base64
+from pathlib import Path
 from typing import Any
 
 from kaos_core.artifacts.models import SUMMARY_THRESHOLD
@@ -37,11 +38,17 @@ _CORE_ANNOTATIONS = ToolAnnotations(
 
 _NO_RUNTIME_ERROR = (
     "No runtime context. This tool requires a running KAOS server. "
-    "Start a server with 'kaos-core-serve' or register tools with a KaosRuntime."
+    "Expose the runtime through the companion 'kaos-mcp' package or register tools "
+    "with a KaosRuntime before calling this tool."
 )
 
 _CATEGORY_ENUM = [e.value for e in ToolCategory]
 _CAPABILITY_ENUM = [e.value for e in ToolCapability]
+
+
+def _credential_store_from_context(context: KaosContext) -> CredentialStore:
+    path = context.get_config("credential_store_path")
+    return CredentialStore(path=Path(path) if path is not None else None)
 
 
 class ListToolsTool(KaosTool):
@@ -725,7 +732,7 @@ class CredentialsCheckTool(KaosTool):
         service = inputs["service"]
         key = inputs.get("key", "default")
 
-        store = CredentialStore()
+        store = _credential_store_from_context(context)
         exists = store.get(module, service, key) is not None
 
         result_dict = {

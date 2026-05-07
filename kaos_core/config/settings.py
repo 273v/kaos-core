@@ -23,6 +23,7 @@ class KaosSettings(BaseSettings):
     artifact_inline_read_max_bytes: int = Field(default=262_144, ge=1)
     artifact_chunk_size_bytes: int = Field(default=65_536, ge=1)
     artifact_temporary_ttl_seconds: int = Field(default=3_600, ge=1)
+    credential_store_path: Path = Field(default=Path(".kaos-credentials.json"), exclude=True)
     profile_name: str = Field(default="default", exclude=True)
 
     model_config = SettingsConfigDict(
