@@ -7,6 +7,65 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a4] — 2026-05-07
+
+### Added
+
+- **`kaos_core.security` — central outbound URL validation + response size caps.**
+  New module providing the canonical implementations of "is this URL safe to
+  fetch?" and "is this response body too large?" across the KAOS platform.
+  Strict-by-default; everything is configurable via :class:`KaosSecuritySettings`
+  (env: ``KAOS_SECURITY_*``) or per-call overrides. Stdlib-only — no new
+  dependencies.
+
+  * **`validate_outbound_url(url)`** — full SSRF guard layered on top of
+    :func:`is_safe_url`. Rejects unsafe schemes (``javascript``, ``data``,
+    ``vbscript``, ``file``), schemes outside the allowlist, malformed URLs,
+    metadata-service hosts (AWS/Azure/GCP IMDS), loopback hosts, and
+    private-network hosts (RFC1918, ULA, link-local). Per-call kwargs
+    (``allow_private``, ``allow_loopback``, ``allow_metadata``,
+    ``allowed_hosts``) override the corresponding settings; ``allowed_hosts``
+    is a union of settings and kwarg entries with support for exact
+    hostnames, ``.suffix.example.com`` wildcards, and CIDR strings.
+  * **`is_safe_url(url)`** — XSS-shape scheme blocklist, byte-for-byte
+    compatible with the prior :mod:`kaos_content._security.is_safe_url`
+    (which delegates here as of ``kaos-content`` 0.1.0a2). Defeats
+    HTML-entity, percent-decode, whitespace, and NUL-byte bypasses.
+  * **`is_private_ip` / `is_loopback` / `is_metadata_service`** — predicates
+    used by the SSRF guard; exposed for callers that need them directly.
+  * **`read_capped_bytes` / `read_capped_json`** — async streaming response
+    readers with a hard byte budget. Pre-flight ``Content-Length`` check
+    plus running budget on ``aiter_bytes``. Catches both well-behaved
+    oversized responses and lying-Content-Length / chunked-transfer
+    bombs. Duck-typed protocol — works with httpx, aiohttp, mocks.
+  * **`check_content_length` / `cap_loaded_bytes`** — sync helpers for
+    pre-flight and post-hoc size enforcement.
+  * **`KaosSecuritySettings`** — strict-by-default settings class with
+    env prefix ``KAOS_SECURITY_``. Knobs:
+    ``block_private_networks`` (default True),
+    ``block_metadata_services`` (default True),
+    ``block_loopback`` (default True),
+    ``allowed_schemes`` (default ``("http", "https")``),
+    ``allowed_hosts`` (default ``[]``),
+    ``response_max_bytes`` (default 100 MB),
+    ``response_size_check_via_content_length`` (default True),
+    ``response_size_check_via_streaming`` (default True).
+  * **`UnsafeURLError` / `ResponseSizeError`** — new exceptions inheriting
+    :class:`KaosCoreError`. Carry structured ``reason``/``host`` and
+    ``max_bytes``/``seen_bytes``/``content_length`` attributes for
+    programmatic handling and agent-friendly error envelopes.
+
+  Motivation: the cross-package audit of ``kaos-source`` (KSRC-02 / KSRC-04)
+  identified 7 sites across ``kaos-source`` and ``kaos-web`` that performed
+  ``resp.json()`` on untrusted bodies without size caps, plus 2 sites that
+  ran ``follow_redirects=True`` without SSRF validation. Centralizing the
+  fixes in ``kaos-core`` rather than inlining per-package keeps the policy
+  single-sourced and makes ``KAOS_SECURITY_*`` env knobs the single
+  configuration surface for outbound network safety. Used by
+  ``kaos-content`` 0.1.0a2 (where ``_security.is_safe_url`` becomes a
+  re-export) and ``kaos-source`` 0.1.0a1 (where the audit fixes consume the
+  helpers).
+
 ## [0.1.0a3] — 2026-05-07
 
 ### Changed
