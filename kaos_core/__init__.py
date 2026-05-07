@@ -1,17 +1,4 @@
 from kaos_core._version import __version__
-from kaos_core.agent import (
-    DelegationRequest,
-    DelegationResult,
-    ElicitationCompletionNotification,
-    ElicitationRequest,
-    ElicitationResponse,
-    ModelHint,
-    ModelPreferences,
-    SamplingRequest,
-    SamplingResponse,
-    TaskManager,
-    UsageStats,
-)
 from kaos_core.artifacts import (
     INLINE_THRESHOLD,
     SUMMARY_THRESHOLD,
@@ -51,6 +38,16 @@ from kaos_core.execution import (
     WorkflowDefinition,
     WorkflowExecutor,
     WorkflowStep,
+)
+from kaos_core.mcp_types import (
+    ElicitationCompletionNotification,
+    ElicitationRequest,
+    ElicitationResponse,
+    ModelHint,
+    ModelPreferences,
+    SamplingRequest,
+    SamplingResponse,
+    TaskManager,
 )
 from kaos_core.prompts import PromptTemplate, TemplateVariable, build_system_prompt
 from kaos_core.protocol import (
@@ -99,6 +96,7 @@ from kaos_core.types import (
     ToolMetadata,
     ToolResult,
 )
+from kaos_core.types.delegation import DelegationRequest, DelegationResult, UsageStats
 from kaos_core.utils import (
     DocumentationGenerator,
     KaosURI,

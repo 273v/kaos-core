@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a3] — 2026-05-07
+
+### Changed
+
+- **`kaos_core.agent` subpackage renamed to `kaos_core.mcp_types`.** The
+  prior name collided with `kaos-agents` (the agent runtime) and
+  obscured what the contents actually are: every type in this
+  subpackage is an MCP wire-protocol shape — direct counterpart to
+  the MCP specification's client-initiated subaction messages
+  (`sampling/createMessage`, `elicitation/create`, MCP async tasks).
+  Top-level `kaos_core` re-exports are unchanged
+  (`from kaos_core import SamplingRequest, TaskManager` still works);
+  only callers importing from a subpackage path need to update:
+  - `from kaos_core.agent import …`
+    → `from kaos_core.mcp_types import …`
+  - `from kaos_core.agent.{sampling,elicitation,task,settings} import …`
+    → `from kaos_core.mcp_types.{sampling,elicitation,task,settings} import …`
+  No back-compat shim ships at v0.1.0a3 — alpha status permits direct
+  breaking changes.
+
+- **`DelegationRequest` / `DelegationResult` / `UsageStats` moved to
+  `kaos_core.types.delegation`.** They describe an A2A delegation
+  pattern that is not part of the MCP specification, so they no longer
+  fit alongside the MCP protocol shapes. Top-level `kaos_core` exports
+  unchanged.
+
+- **`SamplingRequest.max_tokens` default raised from `256` to `32_768`.**
+  The 256 floor was a 2023-era safeguard from when MCP clients
+  delegated to expensive third-party APIs and wanted a hard cap. By
+  2026, frontier models routinely accept 64K-200K output budgets and
+  the typical sub-call needs more than 256 tokens to produce a useful
+  answer. Aligned with the same bump in `kaos-llm-client` and
+  `kaos-agents`.
+
+### Added
+
+- **`maintainers` field in `pyproject.toml`** (cross-package metadata
+  consistency). The next published wheel + sdist carry
+  `Maintainer-email: Michael Bommarito <mike@273ventures.com>`
+  alongside the existing `Author-email: 273 Ventures LLC`.
+
 ## [0.1.0a2] — 2026-05-07
 
 ### Security
@@ -179,6 +220,7 @@ First public alpha release.
 This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary.
 
-[Unreleased]: https://github.com/273v/kaos-core/compare/v0.1.0a2...HEAD
+[Unreleased]: https://github.com/273v/kaos-core/compare/v0.1.0a3...HEAD
+[0.1.0a3]: https://github.com/273v/kaos-core/compare/v0.1.0a2...v0.1.0a3
 [0.1.0a2]: https://github.com/273v/kaos-core/compare/v0.1.0a1...v0.1.0a2
 [0.1.0a1]: https://github.com/273v/kaos-core/releases/tag/v0.1.0a1

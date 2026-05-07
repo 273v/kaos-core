@@ -23,7 +23,11 @@ class SamplingRequest(KaosModel):
     messages: list[SamplingMessage]
     model_preferences: ModelPreferences | None = None
     system_prompt: str | None = None
-    max_tokens: int = Field(default=256, gt=0)
+    # MCP SamplingRequest budget. 256 was a 2023-era safeguard from when
+    # MCP clients delegated to expensive APIs and wanted a hard floor.
+    # In 2026 we want sampling to actually be useful — bumping to 32K
+    # lets a sub-call produce a real answer.
+    max_tokens: int = Field(default=32_768, gt=0)
     temperature: float | None = None
     stop_sequences: list[str] | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
