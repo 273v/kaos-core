@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a2] — 2026-05-07
+
 ### Security
 
 - **HIGH — cross-session artifact access closed.**
@@ -177,5 +179,6 @@ First public alpha release.
 This release is the first to ship under the Apache License 2.0. Earlier
 internal versions were proprietary.
 
-[Unreleased]: https://github.com/273v/kaos-core/compare/v0.1.0a1...HEAD
+[Unreleased]: https://github.com/273v/kaos-core/compare/v0.1.0a2...HEAD
+[0.1.0a2]: https://github.com/273v/kaos-core/compare/v0.1.0a1...v0.1.0a2
 [0.1.0a1]: https://github.com/273v/kaos-core/releases/tag/v0.1.0a1

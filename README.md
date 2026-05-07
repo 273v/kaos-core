@@ -112,7 +112,7 @@ kaos-core vfs ls /artifacts/                      # VFS contents
 | **OS** | Linux, macOS, Windows (pure-Python wheel; no native code) |
 | **Maturity** | Alpha. The public API is documented in `kaos_core.__all__` (105 symbols). |
 | **Stability policy** | Pre-1.0: minor bumps may change behaviour. Every change is documented in [`CHANGELOG.md`](CHANGELOG.md). The MCP tool surface and the `KAOS_<MOD>_*` environment-variable namespace are public API and follow the same policy. |
-| **Test coverage** | 267 unit tests, 90% line coverage on 2,856 statements. |
+| **Test coverage** | 272 tests, 89% line coverage on 2,939 statements. |
 | **Type checker** | Validated with [`ty`](https://docs.astral.sh/ty/), Astral's Python type checker. |
 
 ## Companion packages
