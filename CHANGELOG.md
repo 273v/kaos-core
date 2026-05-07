@@ -60,6 +60,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The error guidance now points to the companion ``kaos-mcp`` package or
   explicit ``KaosRuntime`` registration.
 
+- The end-to-end integration test now carries the registered
+  ``integration`` marker explicitly, keeping marker-based selection in
+  sync with the test directory layout.
+
 - `SchemaExporter.export_openapi` now produces a valid OpenAPI 3.1.0
   document. Previously the output was missing the required ``info``
   object and operations had no ``responses``, which is invalid per
