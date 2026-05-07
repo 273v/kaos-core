@@ -4,8 +4,8 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
-from kaos_core.agent.settings import AgentSettings
 from kaos_core.exceptions import TaskError
+from kaos_core.mcp_types.settings import AgentSettings
 from kaos_core.types.enums import TaskState
 from kaos_core.types.results import ToolResult
 from kaos_core.types.tasks import (

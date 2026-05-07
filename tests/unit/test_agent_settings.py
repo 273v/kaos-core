@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from kaos_core.agent.settings import AgentSettings
-from kaos_core.agent.task import TaskManager
+from kaos_core.mcp_types.settings import AgentSettings
+from kaos_core.mcp_types.task import TaskManager
 
 
 class TestAgentSettingsDefaults:
