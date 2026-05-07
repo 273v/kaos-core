@@ -90,6 +90,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   redirect the development credential store without constructor
   monkeypatching. 1 regression test added in ``tests/unit/test_tools.py``.
 
+- Removed unused published runtime dependencies on ``cryptography`` and
+  ``psutil``. Neither package is imported by ``kaos_core`` today; keeping
+  them in base installs widened the dependency surface without enabling a
+  shipped feature.
+
 - `CredentialStore` now writes credential files atomically (sibling
   temp file + ``fsync`` + ``os.replace``) and sets file mode ``0o600``
   on every write. Parent directories are created if missing. The class
