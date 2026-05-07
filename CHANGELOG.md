@@ -74,6 +74,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Decorated tools created with ``@kaos_tool`` now default to explicit
+  registration (``auto_register=False``), synthesize default
+  ``ToolAnnotations`` when none are provided, return structured dict
+  outputs with a text summary, and translate wrapped-function failures
+  into ``ToolResult.create_error()`` instead of raising
+  ``ToolExecutionError`` from ``execute()``. This keeps decorator-created
+  tools aligned with the MCP boundary contract used by concrete core
+  tools. 4 regression tests added in
+  ``tests/unit/test_decorator_boundary.py``.
+
 - `CredentialStore` now writes credential files atomically (sibling
   temp file + ``fsync`` + ``os.replace``) and sets file mode ``0o600``
   on every write. Parent directories are created if missing. The class

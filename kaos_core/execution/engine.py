@@ -52,6 +52,21 @@ class ExecutionEngine:
             while True:
                 try:
                     result = await self._execute_once(tool_name, inputs, context=context)
+                    if result.isError:
+                        if attempt >= self.config.max_retries:
+                            duration = time.perf_counter() - start
+                            return ExecutionResult(
+                                execution_id=execution_id or str(uuid4()),
+                                state=ExecutionState.FAILED,
+                                output=result,
+                                error=self._error_message(result),
+                                duration=duration,
+                                retries=attempt,
+                            )
+                        attempt += 1
+                        if self.config.retry_delay:
+                            await asyncio.sleep(self.config.retry_delay)
+                        continue
                 except Exception as exc:
                     if attempt >= self.config.max_retries:
                         duration = time.perf_counter() - start
@@ -135,3 +150,7 @@ class ExecutionEngine:
     ) -> str:
         session_id = context.session_id if context is not None else ""
         return f"{session_id}:{tool_name}:{json.dumps(inputs, sort_keys=True, default=str)}"
+
+    @staticmethod
+    def _error_message(result: ToolResult) -> str:
+        return result.text or "Tool returned an error result"

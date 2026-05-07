@@ -163,7 +163,7 @@ async def test_execution_engine_retry_failure_and_batch(runtime: Any) -> None:
     assert cached.metadata["cached"] is True
     assert failed.state == ExecutionState.FAILED
     assert failed.error is not None
-    assert "Function tool execution failed" in failed.error
+    assert "kaos-core-ops-boom failed during execution" in failed.error
     assert failed.retries == 1
     assert batch[0].output is not None
     assert batch[0].output.structuredContent == {"value": 4}
