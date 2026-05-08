@@ -177,7 +177,9 @@ uv pip install dist/*.whl
 
 ## Contributing
 
-Issues and pull requests are welcome. By contributing you certify the
+Issues and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for setup, quality gates, pull request expectations, and engineering
+standards. By contributing you certify the
 [Developer Certificate of Origin v1.1](https://developercertificate.org/) —
 sign every commit with `git commit -s`. Please open an issue before starting
 on a non-trivial change so we can align on scope.

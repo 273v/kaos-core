@@ -2,6 +2,9 @@
 
 <!-- One-paragraph description of what this PR does and why it's needed. -->
 
+See [CONTRIBUTING.md](https://github.com/273v/kaos-core/blob/main/CONTRIBUTING.md)
+for setup, quality gates, and engineering standards.
+
 ## Type of change
 
 - [ ] Bug fix (non-breaking change which fixes an issue)
@@ -17,6 +20,7 @@
 - [ ] `uv run ruff check kaos_core tests` passes
 - [ ] `uv run ty check kaos_core tests` passes
 - [ ] `uv run pytest -m "not live and not network and not slow"` passes
+- [ ] Public API, CLI behavior, package metadata, fixtures, and release impact considered
 - [ ] `CHANGELOG.md` updated under `[Unreleased]` if user-visible
 
 ## Related issues
