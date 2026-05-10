@@ -38,10 +38,10 @@ import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from cryptography.fernet import Fernet, InvalidToken
-from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+if TYPE_CHECKING:
+    from cryptography.fernet import InvalidToken as InvalidToken  # re-export for typing
 
 ENVELOPE_VERSION = 1
 DEFAULT_SALT_BYTES = 16
@@ -187,7 +187,16 @@ class Envelope:
 
 
 def _derive_fernet_key(passphrase: str, kdf: KdfParams) -> bytes:
-    """Derive a urlsafe-base64-encoded 32-byte Fernet key from passphrase + KDF params."""
+    """Derive a urlsafe-base64-encoded 32-byte Fernet key from passphrase + KDF params.
+
+    Imports ``cryptography`` lazily so this module loads cleanly in
+    base installs that didn't pull the ``encrypted-store`` extra. The
+    only paths that actually need ``cryptography`` are
+    encrypt/decrypt/rotate; importing the module to read the
+    :class:`Envelope` dataclass alone is fine.
+    """
+    from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+
     raw = Argon2id(
         salt=kdf.salt,
         length=32,
@@ -212,6 +221,8 @@ def encrypt(
     ciphertext, so two consecutive calls produce different tokens
     even with identical inputs.
     """
+    from cryptography.fernet import Fernet
+
     params = kdf if kdf is not None else KdfParams.fresh()
     if not params.salt:
         params = replace(params, salt=secrets.token_bytes(DEFAULT_SALT_BYTES))
@@ -228,8 +239,23 @@ def encrypt(
 
 def decrypt(envelope: Envelope, passphrase: str) -> bytes:
     """Decrypt an envelope. Raises :class:`InvalidToken` on bad passphrase or tamper."""
+    from cryptography.fernet import Fernet
+
     key = _derive_fernet_key(passphrase, envelope.kdf)
     return Fernet(key).decrypt(envelope.ciphertext)
+
+
+def _get_invalid_token_class() -> type[Exception]:
+    """Lazy accessor for ``cryptography.fernet.InvalidToken``.
+
+    Lets callers catch decryption failures without forcing
+    ``cryptography`` to be importable at module load. Used by the
+    :class:`EncryptedFileStorage` backend; not part of the
+    user-facing surface.
+    """
+    from cryptography.fernet import InvalidToken
+
+    return InvalidToken
 
 
 def rotate_passphrase(
@@ -256,12 +282,32 @@ __all__ = [
     "DEFAULT_MEMORY_COST_KIB",
     "ENVELOPE_VERSION",
     "Envelope",
-    "InvalidToken",
     "KdfParams",
     "decrypt",
     "encrypt",
     "rotate_passphrase",
 ]
+
+
+def __getattr__(name: str) -> object:
+    """PEP 562 hook so ``from envelope import InvalidToken`` keeps working.
+
+    Imports ``cryptography`` lazily on attribute access; raises a
+    clean :class:`ImportError` (with the install hint) when the
+    ``encrypted-store`` extra isn't installed.
+    """
+    if name == "InvalidToken":
+        try:
+            from cryptography.fernet import InvalidToken
+        except ImportError as exc:
+            msg = (
+                "kaos_core.config.storage.envelope.InvalidToken requires the "
+                "encrypted-store extra. Install kaos-core[encrypted-store]."
+            )
+            raise ImportError(msg) from exc
+        return InvalidToken
+    msg = f"module {__name__!r} has no attribute {name!r}"
+    raise AttributeError(msg)
 
 
 # Importing os.urandom would be enough; we use ``secrets`` for

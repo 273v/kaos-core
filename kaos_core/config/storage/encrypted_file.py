@@ -43,8 +43,8 @@ from kaos_core.config.credentials import _harden_owner_only
 from kaos_core.config.storage.base import StorageTier
 from kaos_core.config.storage.envelope import (
     Envelope,
-    InvalidToken,
     KdfParams,
+    _get_invalid_token_class,
     decrypt,
     encrypt,
 )
@@ -106,9 +106,14 @@ class EncryptedFileStorage:
 
     def is_available(self) -> bool:
         # Probe: cryptography importable AND a passphrase resolvable.
+        # Importing the InvalidToken class proves the
+        # ``encrypted-store`` extra is installed; if not, this tier
+        # silently disables itself rather than raising at probe time.
         try:
-            # Importing the envelope module already imported
-            # cryptography; if it imports we're fine.
+            _get_invalid_token_class()
+        except ImportError:
+            return False
+        try:
             self._provider()
         except Exception:
             logger.debug("encrypted-file passphrase provider raised", exc_info=True)
@@ -185,7 +190,7 @@ class EncryptedFileStorage:
             raise RuntimeError(msg) from exc
         try:
             plaintext = decrypt(envelope, passphrase)
-        except InvalidToken as exc:
+        except _get_invalid_token_class() as exc:
             msg = (
                 f"Failed to decrypt {self._path}. The passphrase may be wrong, "
                 "or the file may have been tampered with."

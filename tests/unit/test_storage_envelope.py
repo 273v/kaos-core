@@ -27,7 +27,7 @@ import pytest
 from kaos_core.config.storage.envelope import (
     ENVELOPE_VERSION,
     Envelope,
-    InvalidToken,
+    InvalidToken,  # via PEP 562 __getattr__ — only available when cryptography is.
     KdfParams,
     decrypt,
     encrypt,
