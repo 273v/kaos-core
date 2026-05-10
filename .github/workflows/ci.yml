@@ -152,6 +152,11 @@ jobs:
         run: uv sync --group dev --python ${{ matrix.python-version }}
 
       - name: Run tests with coverage
+        # `shell: bash` so the multi-line `\` continuation works on
+        # Windows runners — the default PowerShell shell would parse
+        # `--` as a unary operator. Bash is preinstalled on
+        # `windows-latest` via Git for Windows.
+        shell: bash
         run: |
           uv run pytest \
             -m "not live and not network and not slow" \
