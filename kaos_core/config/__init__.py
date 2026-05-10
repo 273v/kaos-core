@@ -5,11 +5,14 @@ from kaos_core.config.profiles import ProfileManager
 from kaos_core.config.secrets import resolve_secret
 from kaos_core.config.settings import KaosSettings
 from kaos_core.config.storage import (
+    EncryptedFileStorage,
     HardenedCredentialStore,
     KeyringStorage,
+    PassphraseProvider,
     PlaintextStorage,
     SecretStorage,
     StorageTier,
+    env_passphrase_provider,
     kaos_cache_dir,
     kaos_config_dir,
     kaos_state_dir,
@@ -17,15 +20,18 @@ from kaos_core.config.storage import (
 
 __all__ = [
     "CredentialStore",
+    "EncryptedFileStorage",
     "HardenedCredentialStore",
     "KaosSettings",
     "KeyringStorage",
     "ModuleSettings",
     "OAuthToken",
+    "PassphraseProvider",
     "PlaintextStorage",
     "ProfileManager",
     "SecretStorage",
     "StorageTier",
+    "env_passphrase_provider",
     "kaos_cache_dir",
     "kaos_config_dir",
     "kaos_state_dir",

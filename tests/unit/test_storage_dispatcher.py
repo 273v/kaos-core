@@ -358,6 +358,27 @@ class TestRealKeyringIntegration:
         assert keyring_storage.get("kaos-llm", "openai", "default") == "sk-from-dispatcher"
         assert plaintext_storage.get("kaos-llm", "openai", "default") is None
 
+    def test_dispatcher_with_encrypted_file_tier(self, tmp_path: Path) -> None:
+        from kaos_core.config.storage import EncryptedFileStorage
+        from kaos_core.config.storage.envelope import KdfParams
+
+        kdf = KdfParams.fresh(memory_cost_kib=8, iterations=1, lanes=1)
+        encrypted = EncryptedFileStorage(
+            path=tmp_path / "creds.enc",
+            passphrase_provider=lambda: "test-pp",
+            kdf_params=kdf,
+        )
+        plaintext = PlaintextStorage(path=tmp_path / "legacy.json")
+        plaintext.set("kaos-llm", "openai", "default", "legacy-value")
+        store = HardenedCredentialStore(backends=[encrypted, plaintext])
+
+        # Encrypted tier is strongest available → first read promotes the
+        # secret from plaintext into the encrypted file.
+        assert store.active_tier is StorageTier.ENCRYPTED_FILE
+        assert store.get("kaos-llm", "openai", "default") == "legacy-value"
+        assert encrypted.get("kaos-llm", "openai", "default") == "legacy-value"
+        assert plaintext.get("kaos-llm", "openai", "default") is None
+
     def test_legacy_plaintext_migrates_upward_to_keyring_on_read(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:

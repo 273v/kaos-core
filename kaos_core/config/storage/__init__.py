@@ -16,6 +16,11 @@ from __future__ import annotations
 
 from kaos_core.config.storage.base import SecretStorage, StorageTier
 from kaos_core.config.storage.dispatcher import HardenedCredentialStore
+from kaos_core.config.storage.encrypted_file import (
+    EncryptedFileStorage,
+    PassphraseProvider,
+    env_passphrase_provider,
+)
 from kaos_core.config.storage.keyring_backend import KeyringStorage
 from kaos_core.config.storage.plaintext import PlaintextStorage
 from kaos_core.config.storage.xdg import (
@@ -25,11 +30,14 @@ from kaos_core.config.storage.xdg import (
 )
 
 __all__ = [
+    "EncryptedFileStorage",
     "HardenedCredentialStore",
     "KeyringStorage",
+    "PassphraseProvider",
     "PlaintextStorage",
     "SecretStorage",
     "StorageTier",
+    "env_passphrase_provider",
     "kaos_cache_dir",
     "kaos_config_dir",
     "kaos_state_dir",

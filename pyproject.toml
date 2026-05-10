@@ -64,6 +64,22 @@ keyring = [
   "jeepney>=0.9 ; sys_platform == 'linux'",
 ]
 
+# Encrypted-at-rest credential file (Tier 4). Argon2id-derived KEK
+# wraps a Fernet ciphertext; protects against backup / sync-leak
+# scenarios that plaintext-with-0o600 doesn't (Dropbox, Time
+# Machine, dotfile repo). cryptography 44+ ships native Argon2id;
+# no separate argon2-cffi dep needed.
+encrypted-store = [
+  "cryptography>=44",
+]
+
+# Umbrella extra — pulls every hardening tier so users get the
+# strongest available out of the box without enumerating extras.
+hardened = [
+  "kaos-core[keyring]",
+  "kaos-core[encrypted-store]",
+]
+
 [dependency-groups]
 # ty is pre-1.0 and changes inference between minor versions; pinning
 # to a tight range avoids surprise drift between dev environments and
@@ -88,6 +104,11 @@ dev = [
   "keyring>=25.7",
   "SecretStorage>=3.4 ; sys_platform == 'linux'",
   "jeepney>=0.9 ; sys_platform == 'linux'",
+  # F2.3: cryptography for the encrypted-file tier (Argon2id +
+  # Fernet). Likely already installed transitively; pinning
+  # explicitly makes the dev requirement obvious to humans reading
+  # the manifest.
+  "cryptography>=44",
 ]
 
 [project.scripts]

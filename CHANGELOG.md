@@ -9,6 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Encrypted-file backend (F2.3).** New ``EncryptedFileStorage``
+  (Tier 4) ships a Fernet ciphertext under an Argon2id-derived KEK
+  in a versioned JSON envelope. Sits between the keyring tier and
+  the plaintext tier in the F2 hierarchy. Opt-in via
+  ``kaos-core[encrypted-store]``; the umbrella ``kaos-core[hardened]``
+  extra now pulls keyring + encrypted-store together.
+
+  * **Envelope format (`version: 1`)** — JSON wrapper carrying
+    ``kdf`` parameters (algorithm, salt, memory_cost_kib,
+    iterations, lanes), ``cipher: "fernet"``, the ciphertext, and
+    timestamps. Versioned so future KDF / cipher rotation can
+    coexist with old files.
+  * **KDF defaults** — Argon2id with 64 MiB memory, 3 iterations,
+    4 lanes (OWASP 2026 desktop-interactive guidance). The
+    envelope records what was actually used, so files always
+    decrypt regardless of how the defaults change.
+  * **Atomic writes + hardening** — sibling temp file +
+    ``fsync`` + ``os.replace``, with the F1.5
+    ``_harden_owner_only`` helper applied before the replace so
+    the new file gets owner-only access (``0o600`` on POSIX, NTFS
+    DACL on Windows) the moment it appears.
+  * **Passphrase chain** — ``KAOS_PASSPHRASE`` env var by default
+    via ``env_passphrase_provider``; library users can pass any
+    callable. Interactive prompting belongs to the F2.5 CLI
+    surface.
+  * **Threat model gain** — strictly better than plaintext-0o600
+    against backup / sync leakage (Dropbox, Time Machine, dotfile
+    repo): the file is ciphertext under a passphrase the backup
+    process never sees.
+
 - **OS keyring backend (F2.2).** New ``KeyringStorage`` (Tier 3 in
   the F2 hierarchy) wraps the third-party ``keyring`` package
   behind the :class:`SecretStorage` Protocol. Lights up macOS
