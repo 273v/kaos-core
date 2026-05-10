@@ -9,6 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **CLI verbs for credential management (F2.5).** Six new
+  ``kaos-core`` subcommands cover the day-to-day operator surface:
+
+  * ``kaos-core creds tiers [--json]`` — report which storage
+    tiers are available on this host. Useful when debugging "why
+    is my secret in plaintext on this box?".
+  * ``kaos-core creds list [--module M] [--json]`` — list stored
+    credential names per module. Values are never printed.
+  * ``kaos-core creds set MODULE SERVICE [KEY] [--json]`` — store a
+    credential. The value is read from stdin (uses
+    :func:`getpass.getpass` when stdin is a TTY, plain ``read``
+    otherwise) so it never appears in shell history. Lands in
+    the strongest available tier.
+  * ``kaos-core creds delete MODULE SERVICE [KEY] [--json]`` —
+    remove a credential from every tier that holds it.
+  * ``kaos-core creds migrate [--dry-run] [--json]`` — promote
+    stored credentials to the strongest available tier. Walks the
+    well-known KAOS module namespaces; ``--dry-run`` reports what
+    would move without writing.
+  * ``kaos-core auth status [--json]`` — list stored OAuth tokens
+    (metadata only — never secret values). Read-only; the full
+    ``auth login`` workflow is deferred to F2.6 once provider
+    metadata storage is designed.
+
+  Each verb honors the same ``--json`` contract as the rest of the
+  ``kaos-core`` CLI for pipe-friendly scripting. The dispatcher is
+  built fresh per invocation so ``KAOS_*_DIR`` and other env
+  overrides are respected even when the CLI runs inside a sandbox.
+
+### Fixed
+
+- **`CredentialStore.delete` left empty service / module entries
+  behind**, causing ``list_services`` to keep reporting a service
+  long after its last key was deleted. The fix prunes empty
+  containers on delete so the API stays consistent. Surfaced by
+  the F2.5 ``creds delete`` → ``creds list`` round-trip test.
+
 - **OAuth flow runners (F2.4).** New ``kaos_core.auth`` subpackage
   with provider-agnostic OAuth 2.0 / 2.1 plumbing that produces
   :class:`OAuthToken` objects. Opt-in via ``kaos-core[oauth]``

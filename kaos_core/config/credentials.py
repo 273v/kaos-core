@@ -165,8 +165,19 @@ class CredentialStore:
 
     def delete(self, module: str, service: str, key: str = "default") -> None:
         data = self._load()
-        service_data = data.get(module, {}).get(service, {})
-        service_data.pop(key, None)
+        services = data.get(module)
+        if not services:
+            return
+        keys = services.get(service)
+        if not keys or key not in keys:
+            return
+        del keys[key]
+        # Clean up empty containers so ``list_services`` doesn't keep
+        # reporting the service after every key is gone.
+        if not keys:
+            services.pop(service, None)
+            if not services:
+                data.pop(module, None)
         self._save(data)
 
     def list_services(self, module: str) -> list[str]:
