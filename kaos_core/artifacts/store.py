@@ -5,7 +5,6 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urlparse
 from uuid import uuid4
 
 from pydantic import ValidationError
@@ -15,6 +14,7 @@ from kaos_core.exceptions import ResourceError
 from kaos_core.logging import get_logger
 from kaos_core.protocol.roots import Root
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
+from kaos_core.utils.pathlib_compat import file_uri_to_path
 from kaos_core.vfs.backends import DiskBackend
 from kaos_core.vfs.core import VirtualFileSystem
 
@@ -159,10 +159,15 @@ class ArtifactStore:
         return manifest
 
     def _root_path(self, root: Root) -> Path | None:
-        parsed = urlparse(root.uri)
-        if parsed.scheme != "file":
+        # ``file_uri_to_path`` handles the Windows ``file:///C:/foo``
+        # form correctly. Naive ``Path('/C:/foo')`` mis-anchors the
+        # leading slash on Windows and produces a path that doesn't
+        # ``relative_to`` cleanly against the disk path the VFS hands
+        # us — silently letting cross-root reads through.
+        path = file_uri_to_path(root.uri)
+        if path is None:
             return None
-        return Path(unquote(parsed.path or "/")).resolve()
+        return path.resolve()
 
     def _assert_roots_allow(self, manifest: ArtifactManifest, roots: list[Root] | None) -> None:
         if not roots:
