@@ -30,11 +30,12 @@ def _windows_dacl_grants_only_current_user(path: Path) -> bool | None:
     None if pywin32 isn't installed (caller should skip the check).
     """
     try:
+        import win32api  # ty: ignore[unresolved-import]
         import win32security  # ty: ignore[unresolved-import]
     except ImportError:
         return None
 
-    current_user_sid, _, _ = win32security.LookupAccountName("", win32security.GetUserName())
+    current_user_sid, _, _ = win32security.LookupAccountName("", win32api.GetUserName())
     descriptor = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION)
     dacl = descriptor.GetSecurityDescriptorDacl()
     if dacl is None:

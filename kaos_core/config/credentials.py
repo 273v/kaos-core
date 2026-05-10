@@ -67,9 +67,12 @@ def _harden_owner_only_windows(path: Path) -> None:
     ``pywin32``. Raises ``ImportError`` if ``pywin32`` is missing.
     """
     import ntsecuritycon  # ty: ignore[unresolved-import]
+    import win32api  # ty: ignore[unresolved-import]
     import win32security  # ty: ignore[unresolved-import]
 
-    user_sid, _, _ = win32security.LookupAccountName("", win32security.GetUserName())
+    # ``GetUserName`` lives on ``win32api``, not ``win32security``;
+    # ``LookupAccountName`` then maps the username to its SID.
+    user_sid, _, _ = win32security.LookupAccountName("", win32api.GetUserName())
     descriptor = win32security.GetFileSecurity(str(path), win32security.DACL_SECURITY_INFORMATION)
     dacl = win32security.ACL()
     dacl.AddAccessAllowedAce(
