@@ -73,31 +73,58 @@ jobs:
 
   # ────────────── test ──────────────
   test:
-    name: Test (Python ${{ matrix.python-version }})
-    runs-on: kaos-x64-16core
-    # Stable matrix entries gate PRs; experimental entries
-    # (3.14t free-threaded, 3.15-dev pre-release) are informational
-    # only — the matrix `experimental: true` flag flips
-    # `continue-on-error` so CI is not blocked by upstream churn we
-    # cannot fix.
+    name: Test (${{ matrix.display-os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    # Stable Linux-x64 matrix entries gate PRs; experimental entries
+    # (3.14t free-threaded, 3.15-dev pre-release, AND the cross-OS
+    # legs) are informational only — the matrix `experimental: true`
+    # flag flips `continue-on-error` so CI is not blocked by upstream
+    # churn we cannot fix.
+    #
+    # Cross-OS coverage: macOS-arm64 + Windows-x64 each get a single
+    # Python 3.13 leg. They are gated experimental until proven stable
+    # (we want PRs to merge while we shake out OS-specific surprises).
+    # Linux x64 keeps the full 4-Python-version matrix on the
+    # self-hosted runner for fast PR feedback. Linux aarch64 is
+    # exercised in release.yml's wheel-build matrix; the cdylib
+    # contract is single-platform here so we don't double-up on that.
     strategy:
       fail-fast: false
       matrix:
         include:
+          # ── Linux x64 (self-hosted) — full Python matrix ──
           - python-version: "3.13"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: false
           - python-version: "3.14"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: false
           # Free-threaded build (PEP 703). Available since 3.14 GA.
           # We don't yet ship `Py_GIL_DISABLED` extensions, but we want
           # early signal that pure-Python imports + tests still work
           # without the GIL.
           - python-version: "3.14t"
+            os: kaos-x64-16core
+            display-os: linux-x64
             experimental: true
           # Pre-release of 3.15 (expected GA October 2026). Catches
           # ecosystem incompatibilities (deferred annotations, removed
           # APIs) before consumers hit them.
           - python-version: "3.15"
+            os: kaos-x64-16core
+            display-os: linux-x64
+            experimental: true
+          # ── macOS arm64 — single Python smoke ──
+          - python-version: "3.13"
+            os: macos-14
+            display-os: macos-arm64
+            experimental: true
+          # ── Windows x64 — single Python smoke ──
+          - python-version: "3.13"
+            os: windows-latest
+            display-os: windows-x64
             experimental: true
     continue-on-error: ${{ matrix.experimental }}
     steps:
@@ -109,6 +136,11 @@ jobs:
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
+          # Per-leg cache key. Without this, all matrix legs race on the
+          # same cache key and only the first to finish wins; cross-OS
+          # legs would clobber each other in particular since the
+          # underlying OS already namespaces but Python-version doesn't.
+          cache-suffix: test-${{ matrix.display-os }}-py${{ matrix.python-version }}
 
       - name: Install Python ${{ matrix.python-version }}
         # `--preview` lets `uv python install` resolve in-development
@@ -132,7 +164,7 @@ jobs:
         if: always() && !matrix.experimental
         uses: actions/upload-artifact@v7
         with:
-          name: coverage-${{ matrix.python-version }}
+          name: coverage-${{ matrix.display-os }}-py${{ matrix.python-version }}
           path: coverage.xml
           retention-days: 14
 
