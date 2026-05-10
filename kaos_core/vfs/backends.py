@@ -194,14 +194,19 @@ class DiskBackend:
         normalized = _normalize_relative_path(prefix)
 
         def _list_files() -> builtins.list[str]:
+            # ``Path.as_posix()`` rather than ``str(Path)`` so the result
+            # is forward-slash on every OS. ``str(Path)`` uses the native
+            # separator (backslash on Windows), which would break the
+            # forward-slash prefix comparisons below and downstream
+            # consumers (VFS list_page, walk, list-tool, iterdir).
             return sorted(
-                str(child.relative_to(self.base_path))
+                child.relative_to(self.base_path).as_posix()
                 for child in self.base_path.rglob("*")
                 if child.is_file()
                 and (
                     not normalized
-                    or str(child.relative_to(self.base_path)) == normalized
-                    or str(child.relative_to(self.base_path)).startswith(f"{normalized}/")
+                    or child.relative_to(self.base_path).as_posix() == normalized
+                    or child.relative_to(self.base_path).as_posix().startswith(f"{normalized}/")
                 )
             )
 
