@@ -55,3 +55,32 @@ repos:
         types: [python]
         pass_filenames: false
         require_serial: true
+      - id: bandit
+        name: bandit
+        entry: uvx --python 3.13 bandit
+        args:
+          - --recursive
+          - --skip
+          - B101,B404,B603,B607
+          - --severity-level
+          - medium
+          - --confidence-level
+          - medium
+          - kaos_core
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true
+      - id: vulture
+        name: vulture
+        entry: uvx --python 3.13 vulture
+        args:
+          - kaos_core
+          - --min-confidence
+          - "100"
+          - --ignore-names
+          - client_id,scopes,authorization_endpoint,token_endpoint,device_authorization_endpoint,url,open_ch,container_tag,message_id,parent_message_id,kwargs,context_id,frame,signum,exc_type,tb
+        language: system
+        types: [python]
+        pass_filenames: false
+        require_serial: true

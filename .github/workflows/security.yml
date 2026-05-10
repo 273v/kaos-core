@@ -84,3 +84,70 @@ jobs:
         uses: pypa/gh-action-pip-audit@v1.1.0
         with:
           inputs: /tmp/requirements.txt
+
+  # ────────────── bandit (AST-level static security) ──────────────
+  # AST-level scan for common Python security antipatterns (hardcoded
+  # passwords, weak crypto, shell injection, eval, pickle, etc.).
+  # Mirrors the pre-commit hook so the public PR signal matches what
+  # ran locally. Medium severity + medium confidence to filter noise.
+  #
+  # Skipped rules (justified per audit):
+  #   B101 — `assert` statements: pytest assertions are the test
+  #          framework, not a security claim.
+  #   B404 — `import subprocess`: intentional use (KAOS subprocess
+  #          sandbox + tool integrations).
+  #   B603 — subprocess without `shell=True`: correct usage
+  #          (shell=False is the safer default we deliberately pick).
+  #   B607 — partial-path subprocess invocation: only used for
+  #          known-safe binaries (`python`, `git`).
+  bandit:
+    name: bandit (static security)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: security-bandit-py3.13
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Run bandit
+        run: |
+          uvx --python 3.13 bandit \
+            --recursive \
+            --skip B101,B404,B603,B607 \
+            --severity-level medium \
+            --confidence-level medium \
+            kaos_core
+
+  # ────────────── vulture (dead-code detection) ──────────────
+  # Reports names vulture is 100% confident are unreachable. The
+  # ``--ignore-names`` list carves out known-but-statically-invisible
+  # names (framework callbacks, MCP ``_meta`` keys, signal handlers,
+  # OAuth field names accessed by string, etc.) that vulture can't
+  # infer from import graph alone. Mirrors the pre-commit hook.
+  vulture:
+    name: vulture (dead-code scan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Run vulture
+        run: |
+          uvx --python 3.13 vulture \
+            kaos_core \
+            --min-confidence 100 \
+            --ignore-names client_id,scopes,authorization_endpoint,token_endpoint,device_authorization_endpoint,url,open_ch,container_tag,message_id,parent_message_id,kwargs,context_id,frame,signum,exc_type,tb

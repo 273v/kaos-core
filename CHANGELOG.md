@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- **bandit + vulture now run in both pre-commit and CI.** The
+  ``.pre-commit-config.yaml`` gains two new hooks (bandit static
+  security scan + vulture dead-code scan), mirrored by two new jobs
+  in ``security.yml`` (``bandit (static security)`` +
+  ``vulture (dead-code scan)``). Pre-commit gives contributors fast
+  feedback before push; CI makes the scan publicly visible on every
+  PR. Bandit skip list is justified inline per audit
+  (``B101,B404,B603,B607``); vulture runs at ``--min-confidence 100``
+  with a hand-curated ``--ignore-names`` list for framework callbacks
+  / signal handlers / OAuth field names that vulture can't infer
+  from the import graph alone. Both hooks currently pass clean.
+
 ## [0.1.0a5] — 2026-05-10
 
 ### Added
