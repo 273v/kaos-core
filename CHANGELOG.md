@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OAuth flow runners (F2.4).** New ``kaos_core.auth`` subpackage
+  with provider-agnostic OAuth 2.0 / 2.1 plumbing that produces
+  :class:`OAuthToken` objects. Opt-in via ``kaos-core[oauth]``
+  (httpx). The base install does not import the subpackage; the
+  ``kaos_core.auth`` import probes for ``httpx`` and raises
+  :class:`ImportError` with an actionable install hint when the
+  extra is missing.
+
+  * :class:`PKCELoopbackFlow` — RFC 7636 + RFC 8252 §7.3 PKCE
+    with a 127.0.0.1 loopback redirect. Generates a 128-character
+    URL-safe ``code_verifier``, a SHA-256 ``code_challenge``, binds
+    a port in the IANA dynamic range, opens the browser via
+    :func:`webbrowser.open`, waits for the callback on a stdlib
+    asyncio TCP server, validates the ``state`` parameter, and
+    exchanges the code at the token endpoint. Injection points
+    (``open_browser``, ``http_client``, ``port_range``,
+    ``timeout_seconds``) keep the runner testable and tunable.
+  * :class:`DeviceCodeFlow` — RFC 8628 device authorization grant
+    for headless / SSH / WSL. Polls the token endpoint with the
+    correct grant_type URN, handles ``authorization_pending``,
+    ``slow_down`` (with the recommended 5-second increment),
+    ``access_denied``, ``expired_token``. Injection points
+    (``http_client``, ``display``, ``poll_sleep``,
+    ``slow_down_increment``, ``timeout_seconds``) make polling-loop
+    tests instant and let callers customize the user prompt.
+  * :class:`AuthFlow` runtime-checkable Protocol (``run()``
+    coroutine) and :class:`FlowSelector` heuristic — pick loopback
+    when a graphical session is available and 127.0.0.1 is
+    bindable, device flow otherwise. ``force_loopback`` /
+    ``force_device`` overrides for CLI flags.
+  * :func:`refresh_token` — async ``grant_type=refresh_token`` POST
+    against the token's recorded ``issuer``. Returns a fresh
+    :class:`OAuthToken` (per OAuth 2.1, the previous refresh
+    token is invalidated server-side after rotation; callers must
+    persist the returned token). Optional pre-configured
+    :class:`httpx.AsyncClient` for connection reuse.
+  * :class:`OAuthFlowError` — raised for protocol-level failures
+    (IdP error responses, callback state mismatch, missing
+    ``device_authorization_endpoint``). Transport-level
+    :class:`httpx.HTTPError` propagates as-is.
+
+  ``OAuthToken`` extended with ``issuer``, ``client_id``, and
+  ``obtained_at`` fields (all optional, all defaulted to ``None``
+  so existing serialized tokens still load) plus a new
+  :meth:`is_expired_within` helper for proactive refresh.
+
 - **Encrypted-file backend (F2.3).** New ``EncryptedFileStorage``
   (Tier 4) ships a Fernet ciphertext under an Argon2id-derived KEK
   in a versioned JSON envelope. Sits between the keyring tier and

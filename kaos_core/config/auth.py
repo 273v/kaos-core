@@ -42,10 +42,10 @@ class OAuthToken(KaosModel):
         Defaults are caller-driven; common practice is 30-60 seconds
         for interactive CLIs and 5 minutes for long-running workers.
         """
-        if self.expires_at is None:
-            return False
         if seconds < 0:
             msg = "seconds must be non-negative"
             raise ValueError(msg)
+        if self.expires_at is None:
+            return False
         expiry = datetime.fromisoformat(self.expires_at.replace("Z", "+00:00"))
         return expiry <= datetime.now(UTC) + timedelta(seconds=seconds)

@@ -73,11 +73,23 @@ encrypted-store = [
   "cryptography>=44",
 ]
 
-# Umbrella extra — pulls every hardening tier so users get the
-# strongest available out of the box without enumerating extras.
+# OAuth flow runners (F2.4): PKCE+loopback (RFC 8252) for desktop
+# CLIs, device flow (RFC 8628) for headless. Implemented against
+# httpx for the token endpoint POST and stdlib asyncio for the
+# loopback callback. No Authlib dep — the OAuth flows we ship are
+# small enough that a generic library would add more deps than
+# value.
+oauth = [
+  "httpx>=0.28",
+]
+
+# Umbrella extra — pulls every hardening tier + OAuth so users
+# get the strongest available out of the box without enumerating
+# extras.
 hardened = [
   "kaos-core[keyring]",
   "kaos-core[encrypted-store]",
+  "kaos-core[oauth]",
 ]
 
 [dependency-groups]
@@ -109,6 +121,8 @@ dev = [
   # explicitly makes the dev requirement obvious to humans reading
   # the manifest.
   "cryptography>=44",
+  # F2.4: httpx for the OAuth flow runners' token-endpoint POST.
+  "httpx>=0.28",
 ]
 
 [project.scripts]
