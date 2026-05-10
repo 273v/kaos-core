@@ -4,12 +4,28 @@ from kaos_core.config.module_settings import ModuleSettings
 from kaos_core.config.profiles import ProfileManager
 from kaos_core.config.secrets import resolve_secret
 from kaos_core.config.settings import KaosSettings
+from kaos_core.config.storage import (
+    HardenedCredentialStore,
+    PlaintextStorage,
+    SecretStorage,
+    StorageTier,
+    kaos_cache_dir,
+    kaos_config_dir,
+    kaos_state_dir,
+)
 
 __all__ = [
     "CredentialStore",
+    "HardenedCredentialStore",
     "KaosSettings",
     "ModuleSettings",
     "OAuthToken",
+    "PlaintextStorage",
     "ProfileManager",
+    "SecretStorage",
+    "StorageTier",
+    "kaos_cache_dir",
+    "kaos_config_dir",
+    "kaos_state_dir",
     "resolve_secret",
 ]

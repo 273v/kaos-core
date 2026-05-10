@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tier-aware credential dispatcher (F2.1).** New
+  ``kaos_core.config.storage`` subpackage introduces an optional
+  hardened-storage layer that sits between
+  :func:`resolve_secret` and the on-disk credential store.
+  Foundation for F2.2 (keyring) and F2.3 (encrypted-file); the
+  base install ships only the existing plaintext tier (now
+  formally identified as :attr:`StorageTier.PLAINTEXT`) and the
+  dispatcher gracefully degrades to it when no extras are
+  installed.
+
+  * **`SecretStorage` Protocol** — ``runtime_checkable``; the
+    common shape every backend implements.
+  * **`StorageTier` IntEnum** — ``NONE`` < ``PLAINTEXT`` <
+    ``ENCRYPTED_FILE`` < ``KEYRING`` < ``SYSTEM_BROKER``,
+    spaced by 10 so future tiers can slot in without
+    renumbering.
+  * **`HardenedCredentialStore`** — reads from the strongest
+    tier that has the secret, auto-migrates upward on hit,
+    writes to the strongest available tier and clears weaker
+    tiers, supports a ``prefer_tier=`` cap for testing /
+    forced-downgrade scenarios.
+  * **`PlaintextStorage`** — Tier-5 adapter that wraps the
+    existing :class:`CredentialStore` to fit the Protocol.
+  * **`kaos_config_dir() / kaos_state_dir() / kaos_cache_dir()`** —
+    XDG basedir resolver (POSIX/macOS) + ``%LOCALAPPDATA%`` Known-
+    Folder resolver (Windows). Tokens go in ``$XDG_STATE_HOME``,
+    not ``$XDG_CONFIG_HOME``; on Windows always
+    ``%LOCALAPPDATA%`` (DPAPI breaks under roaming
+    ``%APPDATA%``). Each helper honors a ``KAOS_*_DIR`` override.
+
+  ``resolve_secret`` now accepts either a ``CredentialStore``
+  (legacy callers) or a ``HardenedCredentialStore`` for the
+  ``credential_store=`` argument; both share the same ``get``
+  shape so existing callers are unaffected.
+
 - **Windows portability fixes for cross-OS CI (F1).** The
   ``windows-latest`` matrix leg added in 0.1.0a4 surfaced 11 test
   failures rooted in three platform hazards. All are now fixed.
