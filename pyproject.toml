@@ -42,6 +42,16 @@ dependencies = [
   "pydantic-settings>=2.8.1",
 ]
 
+[project.optional-dependencies]
+# NTFS ACL hardening for ``CredentialStore`` on Windows. The library
+# falls back to a no-op + warning when ``pywin32`` is missing on
+# Windows, so this extra is opt-in for users who actually need
+# owner-only credential file access on a Windows host. POSIX users
+# rely on ``chmod(0o600)`` and never need this extra.
+windows-secure = [
+  "pywin32>=308 ; sys_platform == 'win32'",
+]
+
 [dependency-groups]
 # ty is pre-1.0 and changes inference between minor versions; pinning
 # to a tight range avoids surprise drift between dev environments and
@@ -53,6 +63,11 @@ dev = [
   "pytest-cov>=7.1.0",
   "ruff>=0.15.12",
   "ty>=0.0.34,<0.1",
+  # Windows-only: install pywin32 in dev/CI environments so the NTFS
+  # ACL-hardening path in ``CredentialStore`` is exercised on the
+  # Windows-x64 matrix leg. The marker keeps this a no-op on
+  # Linux/macOS dev installs.
+  "pywin32>=308 ; sys_platform == 'win32'",
 ]
 
 [project.scripts]

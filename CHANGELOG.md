@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Windows portability fixes for cross-OS CI (F1).** The
+  ``windows-latest`` matrix leg added in 0.1.0a4 surfaced 11 test
+  failures rooted in three platform hazards. All are now fixed.
+
+  * **`kaos_core.utils.pathlib_compat` (new)** — ``to_posix_str(path)``
+    renders any path-like as forward-slash form for external API
+    boundaries; ``file_uri_to_path(uri)`` parses ``file://`` URIs into
+    native ``Path`` objects on every OS, correctly handling the Windows
+    ``file:///C:/foo`` form. Both are re-exported from
+    ``kaos_core.utils``. Used internally for VFS list output and
+    artifact roots-policy checks; reusable across the kaos-* family.
+
+  * **`kaos-core[windows-secure]` extra** — installs ``pywin32`` on
+    Windows for NTFS DACL hardening of the credentials file. Optional;
+    ``CredentialStore`` falls back to a logged warning when ``pywin32``
+    is missing on Windows. POSIX users do not need this extra.
+
+### Changed
+
+- **`CredentialStore` — owner-only access via the platform's native
+  primitive.** On POSIX, behavior is unchanged (``chmod 0o600``). On
+  Windows, the file is now hardened via an NTFS DACL granting full
+  control to the current user only (``win32security`` from the
+  ``windows-secure`` extra). When ``pywin32`` is missing on Windows,
+  the file is written without DACL hardening and a warning is logged.
+  See the docstring for the explicit limitations; production secrets
+  should use a managed secrets service regardless.
+
+### Fixed
+
+- **`DiskBackend.list` returned ``[]`` on Windows for any non-empty
+  prefix.** ``str(child.relative_to(...))`` rendered with the native
+  separator (backslash on Windows), breaking the forward-slash prefix
+  comparisons. Fix: route through ``Path.as_posix()``. Cascading fix
+  for ``VFS.walk``, ``list_page``, ``cleanup_context``,
+  ``VFSPath.iterdir``, and ``VFSListTool``.
+
+- **`ArtifactStore` roots-policy check silently allowed cross-root
+  reads on Windows.** ``urlparse('file:///C:/foo').path`` is
+  ``/C:/foo``; naive ``Path('/C:/foo')`` mis-anchors the leading slash
+  on Windows, so ``relative_to`` against the actual disk path failed
+  in a way that let the read through. Fix: route URI → Path through
+  ``file_uri_to_path``.
+
 ## [0.1.0a4] — 2026-05-07
 
 ### Added
