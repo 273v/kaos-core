@@ -52,6 +52,18 @@ windows-secure = [
   "pywin32>=308 ; sys_platform == 'win32'",
 ]
 
+# OS-native credential vaults (Tier 3 in the F2 storage hierarchy).
+# ``keyring`` itself is pure-Python and BSD-licensed. On Linux it
+# delegates to libsecret via SecretStorage + jeepney (also pure-
+# Python, BSD); we install both so a fresh kaos-core[keyring] on
+# Linux works without compiling C extensions. macOS / Windows pull
+# in their native backends from ``keyring`` directly.
+keyring = [
+  "keyring>=25.7",
+  "SecretStorage>=3.4 ; sys_platform == 'linux'",
+  "jeepney>=0.9 ; sys_platform == 'linux'",
+]
+
 [dependency-groups]
 # ty is pre-1.0 and changes inference between minor versions; pinning
 # to a tight range avoids surprise drift between dev environments and
@@ -68,6 +80,14 @@ dev = [
   # Windows-x64 matrix leg. The marker keeps this a no-op on
   # Linux/macOS dev installs.
   "pywin32>=308 ; sys_platform == 'win32'",
+  # F2.2: install keyring in dev/CI so KeyringStorage is exercised
+  # on every leg (CI runners actually expose macOS Keychain and
+  # Windows Credential Manager; on Linux the headless detection
+  # disables the tier and the encrypted-file fallback is exercised
+  # instead).
+  "keyring>=25.7",
+  "SecretStorage>=3.4 ; sys_platform == 'linux'",
+  "jeepney>=0.9 ; sys_platform == 'linux'",
 ]
 
 [project.scripts]

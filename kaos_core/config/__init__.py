@@ -6,6 +6,7 @@ from kaos_core.config.secrets import resolve_secret
 from kaos_core.config.settings import KaosSettings
 from kaos_core.config.storage import (
     HardenedCredentialStore,
+    KeyringStorage,
     PlaintextStorage,
     SecretStorage,
     StorageTier,
@@ -18,6 +19,7 @@ __all__ = [
     "CredentialStore",
     "HardenedCredentialStore",
     "KaosSettings",
+    "KeyringStorage",
     "ModuleSettings",
     "OAuthToken",
     "PlaintextStorage",

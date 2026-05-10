@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **OS keyring backend (F2.2).** New ``KeyringStorage`` (Tier 3 in
+  the F2 hierarchy) wraps the third-party ``keyring`` package
+  behind the :class:`SecretStorage` Protocol. Lights up macOS
+  Keychain, Windows Credential Manager / WinVault, Linux libsecret
+  / Secret Service, and KDE Wallet behind a single uniform
+  interface. Opt-in via the new ``kaos-core[keyring]`` extra.
+
+  The probe disables the tier in three real-world hazard scenarios
+  to avoid silent foot-guns:
+
+  * Backend ``priority < 1`` (the inert ``Fail`` keyring) — rejected.
+  * Backend module is ``keyrings.alt.*`` — rejected. Those backends
+    silently store plaintext under ``~/.local/share/python_keyring/``,
+    which would make "keyring success" a lie.
+  * Headless Linux (no ``DISPLAY`` / ``WAYLAND_DISPLAY`` / TTY) —
+    skipped by default; override with ``KAOS_FORCE_KEYRING=1``.
+  * WSL — skipped by default (libsecret D-Bus session is unreliable);
+    override with ``KAOS_WSL_USE_KEYRING=1``.
+
+  ``list_services`` is backed by a small JSON *index* in
+  ``$XDG_STATE_HOME/kaos/credentials.keyring.index.json`` because
+  the keyring API has no cross-backend enumeration primitive. The
+  index holds **no secret values** — only ``(module, service, key)``
+  names. Profile names scope the keyring service identifier so
+  multiple kaos-core profiles can coexist without colliding on
+  Keychain / Credential Manager service names.
+
 - **Tier-aware credential dispatcher (F2.1).** New
   ``kaos_core.config.storage`` subpackage introduces an optional
   hardened-storage layer that sits between

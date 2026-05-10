@@ -302,3 +302,79 @@ class TestRealPlaintextIntegration:
         store = HardenedCredentialStore()
         assert any(b.tier is StorageTier.PLAINTEXT for b in store.backends)
         assert store.active_tier is StorageTier.PLAINTEXT
+
+
+class TestRealKeyringIntegration:
+    """End-to-end: dispatcher + real KeyringStorage + real PlaintextStorage.
+
+    Uses a memory-backed keyring (the same fixture pattern as
+    test_storage_keyring) so the test runs in any environment.
+    """
+
+    @staticmethod
+    def _install_memory_keyring(monkeypatch: pytest.MonkeyPatch) -> None:
+        import keyring  # local for test fixture (kaos-core[keyring] dev dep)
+        import keyring.backend
+        import keyring.errors
+
+        class _Mem(keyring.backend.KeyringBackend):
+            priority = 5  # type: ignore[assignment]
+
+            def __init__(self) -> None:
+                super().__init__()
+                self._d: dict[tuple[str, str], str] = {}
+
+            def get_password(self, service: str, username: str) -> str | None:
+                return self._d.get((service, username))
+
+            def set_password(self, service: str, username: str, password: str) -> None:
+                self._d[(service, username)] = password
+
+            def delete_password(self, service: str, username: str) -> None:
+                if (service, username) not in self._d:
+                    raise keyring.errors.PasswordDeleteError("missing")
+                del self._d[(service, username)]
+
+        backend = _Mem()
+        monkeypatch.setattr(keyring, "get_keyring", lambda: backend)
+        monkeypatch.setattr(keyring, "set_password", backend.set_password)
+        monkeypatch.setattr(keyring, "get_password", backend.get_password)
+        monkeypatch.setattr(keyring, "delete_password", backend.delete_password)
+        monkeypatch.setenv("DISPLAY", ":0")  # bypass headless guard on Linux
+
+    def test_dispatcher_routes_writes_to_keyring_when_available(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        from kaos_core.config.storage import KeyringStorage
+
+        self._install_memory_keyring(monkeypatch)
+        keyring_storage = KeyringStorage(index_path=tmp_path / "idx.json")
+        plaintext_storage = PlaintextStorage(path=tmp_path / "creds.json")
+        store = HardenedCredentialStore(backends=[keyring_storage, plaintext_storage])
+
+        assert store.active_tier is StorageTier.KEYRING
+        store.set("kaos-llm", "openai", "default", "sk-from-dispatcher")
+        # Lands in keyring, not plaintext.
+        assert keyring_storage.get("kaos-llm", "openai", "default") == "sk-from-dispatcher"
+        assert plaintext_storage.get("kaos-llm", "openai", "default") is None
+
+    def test_legacy_plaintext_migrates_upward_to_keyring_on_read(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        # Mirrors the user upgrade story: existing
+        # ~/.kaos-credentials.json + freshly installed [keyring] →
+        # first read lifts the secret into keyring and clears
+        # plaintext.
+        from kaos_core.config.storage import KeyringStorage
+
+        self._install_memory_keyring(monkeypatch)
+        plaintext_storage = PlaintextStorage(path=tmp_path / "legacy.json")
+        plaintext_storage.set("kaos-llm", "openai", "default", "legacy-value")
+
+        keyring_storage = KeyringStorage(index_path=tmp_path / "idx.json")
+        store = HardenedCredentialStore(backends=[keyring_storage, plaintext_storage])
+
+        assert store.get("kaos-llm", "openai", "default") == "legacy-value"
+        # Auto-promoted into keyring; plaintext is now empty.
+        assert keyring_storage.get("kaos-llm", "openai", "default") == "legacy-value"
+        assert plaintext_storage.get("kaos-llm", "openai", "default") is None
