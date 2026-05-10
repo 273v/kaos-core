@@ -140,6 +140,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     skipped by default; override with ``KAOS_FORCE_KEYRING=1``.
   * WSL — skipped by default (libsecret D-Bus session is unreliable);
     override with ``KAOS_WSL_USE_KEYRING=1``.
+  * Hard opt-out via ``KAOS_DISABLE_KEYRING=1`` — applies on every
+    platform including macOS / Windows where the platform-specific
+    heuristics never fire. Useful for CI sandboxes and operators
+    who explicitly don't want the OS keyring touched.
 
   ``list_services`` is backed by a small JSON *index* in
   ``$XDG_STATE_HOME/kaos/credentials.keyring.index.json`` because

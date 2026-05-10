@@ -21,7 +21,13 @@ from kaos_core.cli import main
 def _isolated_state(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("KAOS_STATE_DIR", str(tmp_path))
     # Force keyring tier off so tests don't accidentally write to a
-    # real macOS Keychain or Windows Credential Manager.
+    # real macOS Keychain or Windows Credential Manager. The Linux
+    # headless heuristic doesn't fire on macOS / Windows where
+    # Keychain / WinVault are always considered available, so we
+    # use the explicit ``KAOS_DISABLE_KEYRING=1`` opt-out. On Linux
+    # we ALSO drop DISPLAY for defence in depth, in case a runner
+    # has X11 forwarded.
+    monkeypatch.setenv("KAOS_DISABLE_KEYRING", "1")
     monkeypatch.delenv("DISPLAY", raising=False)
     monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
     monkeypatch.delenv("KAOS_FORCE_KEYRING", raising=False)

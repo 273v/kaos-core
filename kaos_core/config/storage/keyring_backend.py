@@ -177,6 +177,14 @@ class KeyringStorage:
     # ──────────────── probe ────────────────
 
     def _probe(self) -> bool:
+        if os.environ.get("KAOS_DISABLE_KEYRING") == "1":
+            # Hard opt-out for CI / sandboxes / users who explicitly
+            # don't want the OS keyring touched. Honored before any
+            # platform-specific heuristic so it works on macOS /
+            # Windows where Keychain / WinVault are otherwise always
+            # considered available.
+            logger.debug("keyring tier disabled: KAOS_DISABLE_KEYRING=1 set")
+            return False
         if _is_headless_linux() and os.environ.get("KAOS_FORCE_KEYRING") != "1":
             logger.debug(
                 "keyring tier disabled: headless Linux (set KAOS_FORCE_KEYRING=1 to override)"
