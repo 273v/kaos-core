@@ -1,36 +1,26 @@
 version: 2
 updates:
-  # ────────────── GitHub Actions ──────────────
-  - package-ecosystem: github-actions
-    directory: /
+  # Python deps via PEP 621 / uv.lock — landed in pip's ecosystem
+  # by Dependabot today; will move to a dedicated uv ecosystem when
+  # GitHub ships one.
+  - package-ecosystem: "pip"
+    directory: "/"
     schedule:
-      interval: monthly
-      day: monday
-      time: "06:00"
-      timezone: Etc/UTC
-    groups:
-      actions:
-        patterns: ["*"]
-    labels: ["type:deps", "ci"]
-    commit-message:
-      prefix: "ci(deps)"
-
-  # ────────────── Python (uv-managed via pyproject.toml) ──────────────
-  - package-ecosystem: pip
-    directory: /
-    schedule:
-      interval: monthly
-      day: monday
-      time: "06:00"
-      timezone: Etc/UTC
-    groups:
-      python:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-      python-major:
-        patterns: ["*"]
-        update-types: ["major"]
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "Etc/UTC"
     open-pull-requests-limit: 5
-    labels: ["type:deps"]
-    commit-message:
-      prefix: "deps"
+    groups:
+      deps-minor:
+        update-types: ["minor", "patch"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    groups:
+      actions-all:
+        patterns: ["*"]
