@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a6] — 2026-05-11
+
+### Added
+
+- `KaosRuntime.__init__(vfs=...)` kwarg for explicit VFS injection.
+- `KaosRuntime.test_mode(in_memory: bool = True)` classmethod —
+  canonical pytest constructor with in-memory VFS + cleanup baked in.
+  Closes the disk-VFS cross-pytest-leakage footgun observed in
+  kaos-agents live composition tests (Excel test went from ~25-40%
+  flake to 8/8 stable after switching to test_mode).
+
+### Changed
+
+- `KaosRuntime.vfs` is now a property; setting it invalidates the
+  cached `artifacts` ArtifactStore. Eliminates the cross-attribute
+  coupling footgun where replacing `runtime.vfs` post-init left
+  `runtime.artifacts` still pointing at the old VFS.
+- `KaosRuntime.artifacts` is now a `@cached_property` over
+  `self.vfs` instead of being captured at construction time.
+
+### Mirrored from monorepo
+
+This release mirrors monorepo commit `d0ba060` (Sprint-1 #1, "close
+KaosRuntime VFS leakage footgun") from `kaos-modules` plus
+associated regression tests at `tests/unit/test_runtime_isolation.py`.
+Per `memory/feedback_per_module_split_mirror.md`, monorepo source
+edits to published packages must be mirrored back to the per-module
+repo before they ship.
+
 ### Security
 
 - **bandit + vulture now run in both pre-commit and CI.** The
