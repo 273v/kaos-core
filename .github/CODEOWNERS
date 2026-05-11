@@ -1,10 +1,12 @@
-# Default owner for everything in this repo
-* @mjbommar
+# CODEOWNERS — required reviewers for kaos-core.
+# Two owners so branch-protection 1-reviewer rule cannot be self-review.
+* @mjbommar @jillbomm
 
-# Critical paths get explicit ownership for clarity
-/.github/                @mjbommar
-/pyproject.toml          @mjbommar
-/LICENSE                 @mjbommar
-/NOTICE                  @mjbommar
-/CHANGELOG.md            @mjbommar
-/kaos_core/_version.py   @mjbommar
+# Critical paths: high-blast-radius files that MUST require non-self review.
+/.github/   @mjbommar @jillbomm
+/pyproject.toml   @mjbommar @jillbomm
+*_version.py   @mjbommar @jillbomm
+/CHANGELOG.md   @mjbommar @jillbomm
+/LICENSE   @mjbommar @jillbomm
+/NOTICE   @mjbommar @jillbomm
+/SECURITY.md   @mjbommar @jillbomm
