@@ -77,6 +77,53 @@ jobs:
           print(f'kaos-core {kaos_core.__version__}: {n} core tools registered')
           "
 
+      # ── F8: CycloneDX SBOM generation (kaos-compliance audit) ──
+      # SBOMs were previously trapped in workflow artifact storage (30-day
+      # expiry). We now ship them as GitHub Release assets so third parties
+      # can fetch the exact SBOM via `gh release download` or `curl`. PyPI's
+      # upload contract rejects non-wheel/non-sdist filetypes (twine's
+      # DIST_EXTENSIONS = {.whl, .tar.gz, .zip}), so the SBOM lives in
+      # `sbom/` — NOT `dist/` — and ships only on the GitHub Release;
+      # the Trusted Publisher PyPI upload is untouched.
+      - name: Generate CycloneDX SBOM (F8)
+        run: |
+          set -euo pipefail
+          mkdir -p sbom
+          # Resolve package version from the built sdist; works for both
+          # tag-triggered runs and workflow_dispatch dry-runs.
+          SDIST=$(ls dist/*.tar.gz | head -1)
+          PKG_VERSION=$(basename "$SDIST" .tar.gz | awk -F- '{print $NF}')
+          PKG_NAME="kaos-core"
+          SBOM_FILE="sbom/${PKG_NAME}-${PKG_VERSION}.cdx.json"
+          # Pinned cyclonedx-bom (PyPA-blessed CycloneDX tooling for Python).
+          uvx --from cyclonedx-bom==7.3.0 cyclonedx-py environment .venv \
+            --pyproject pyproject.toml \
+            --mc-type library \
+            --of JSON \
+            --output-reproducible \
+            --validate \
+            -o "${SBOM_FILE}"
+          ls -la sbom/
+          # Sanity: SBOM must have components — empty SBOM means the env
+          # wasn't synced and the SBOM is meaningless. Fail loudly so a
+          # broken SBOM step never silently ships an empty BOM.
+          uv run python -c "
+          import json, sys
+          d = json.load(open('${SBOM_FILE}'))
+          n = len(d.get('components', []))
+          if n == 0:
+              print('ERROR: SBOM has 0 components', file=sys.stderr)
+              sys.exit(1)
+          print(f'SBOM OK: {n} components, specVersion={d.get(\"specVersion\")}, file=${SBOM_FILE}')
+          "
+
+      - name: Upload SBOM artifact (F8)
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: sbom/
+          retention-days: 30
+
       - name: Upload distribution artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -124,6 +171,12 @@ jobs:
           name: dist
           path: dist/
 
+      - name: Download SBOM artifact (F8)
+        uses: actions/download-artifact@v8
+        with:
+          name: sbom
+          path: sbom/
+
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -137,4 +190,5 @@ jobs:
             --title "kaos-core $VERSION" \
             --notes-from-tag \
             $PRERELEASE_FLAG \
-            dist/*
+            dist/* \
+            sbom/*
