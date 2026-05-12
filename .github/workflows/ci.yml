@@ -22,10 +22,12 @@ jobs:
     runs-on: kaos-x64-16core
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -54,10 +56,12 @@ jobs:
     runs-on: kaos-x64-16core
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -85,14 +89,14 @@ jobs:
     # Python 3.13 leg. They are gated experimental until proven stable
     # (we want PRs to merge while we shake out OS-specific surprises).
     # Linux x64 keeps the full 4-Python-version matrix on the
-    # self-hosted runner for fast PR feedback. Linux aarch64 is
+    # GitHub-hosted larger runner for fast PR feedback. Linux aarch64 is
     # exercised in release.yml's wheel-build matrix; the cdylib
     # contract is single-platform here so we don't double-up on that.
     strategy:
       fail-fast: false
       matrix:
         include:
-          # ── Linux x64 (self-hosted) — full Python matrix ──
+          # ── Linux x64 (GitHub-hosted larger runner) — full Python matrix ──
           - python-version: "3.13"
             os: kaos-x64-16core
             display-os: linux-x64
@@ -129,10 +133,12 @@ jobs:
     continue-on-error: ${{ matrix.experimental }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -167,7 +173,7 @@ jobs:
 
       - name: Upload coverage report
         if: always() && !matrix.experimental
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: coverage-${{ matrix.display-os }}-py${{ matrix.python-version }}
           path: coverage.xml
@@ -183,10 +189,12 @@ jobs:
     runs-on: kaos-x64-16core
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
 
       - name: Install Python 3.13
         run: uv python install 3.13
@@ -208,10 +216,12 @@ jobs:
     needs: [lint, test]
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78 # v7
         with:
           enable-cache: true
           cache-dependency-glob: uv.lock
@@ -260,7 +270,7 @@ jobs:
           /tmp/smoke/bin/kaos-core --help
 
       - name: Upload distribution artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: dist-${{ github.sha }}
           path: dist/
