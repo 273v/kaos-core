@@ -202,3 +202,22 @@ include = ["kaos_core", "tests"]
 
 [tool.uv]
 package = true
+exclude-newer = "72 hours"
+
+[tool.uv.exclude-newer-package]
+"kaos-citations" = false
+"kaos-content" = false
+"kaos-core" = false
+"kaos-graph" = false
+"kaos-llm-client" = false
+"kaos-llm-core" = false
+"kaos-mcp" = false
+"kaos-ml-core" = false
+"kaos-names" = false
+"kaos-nlp-core" = false
+"kaos-nlp-transformers" = false
+"kaos-office" = false
+"kaos-pdf" = false
+"kaos-source" = false
+"kaos-tabular" = false
+"kaos-web" = false
