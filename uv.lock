@@ -2,6 +2,28 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 
+[options]
+exclude-newer = "2026-05-09T01:40:57.262723862Z"
+exclude-newer-span = "PT72H"
+
+[options.exclude-newer-package]
+kaos-source = false
+kaos-llm-client = false
+kaos-citations = false
+kaos-web = false
+kaos-content = false
+kaos-mcp = false
+kaos-llm-core = false
+kaos-office = false
+kaos-graph = false
+kaos-ml-core = false
+kaos-nlp-core = false
+kaos-nlp-transformers = false
+kaos-tabular = false
+kaos-core = false
+kaos-pdf = false
+kaos-names = false
+
 [[package]]
 name = "annotated-types"
 version = "0.7.0"
