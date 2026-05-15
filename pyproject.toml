@@ -103,6 +103,10 @@ dev = [
   "pytest-cov>=7.1.0",
   "ruff>=0.15.12",
   "ty>=0.0.34,<0.1",
+  # Validates Draft 2020-12 JSON Schema output from ParameterSchema.
+  # Optional at runtime: tests gracefully skip without it, but CI runs
+  # with it installed so the strict-schema gate fires.
+  "jsonschema>=4.21",
   # Windows-only: install pywin32 in dev/CI environments so the NTFS
   # ACL-hardening path in ``CredentialStore`` is exercised on the
   # Windows-x64 matrix leg. The marker keeps this a no-op on
