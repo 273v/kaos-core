@@ -25,4 +25,13 @@ class ParameterSchema(KaosModel):
         schema.update(self.constraints)
         if not self.required and self.default is not None:
             schema["default"] = self.default
+        # OpenAI's strict JSON Schema validator rejects `type=array` without
+        # `items`. Anthropic accepts it. Without this floor, a single bridged
+        # tool that forgot to declare item types breaks the entire turn for
+        # OpenAI-provider sessions — the LLM can't see ANY tool. Default to
+        # the universal-accept `items: {}` so callers get a valid schema even
+        # when they forget to type their array elements; well-typed callers
+        # override by setting `constraints["items"]` explicitly.
+        if schema["type"] == "array" and "items" not in schema:
+            schema["items"] = {}
         return schema
