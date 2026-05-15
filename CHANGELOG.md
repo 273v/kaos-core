@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`ParameterSchema.to_json_schema()` now emits a defensive
+  `items: {}` for `type=array` declarations that don't otherwise
+  set `items`.** OpenAI's strict JSON Schema validator rejects
+  bare-array function parameters with `400 invalid_function_parameters`,
+  which previously took down the ENTIRE tool catalog for
+  openai-provider sessions in kaos-agents — the agent could see no
+  tools and hallucinated answers instead of using
+  `kaos-source-fr-search` / `kaos-content-search-document` /
+  `kaos-pdf-extract-parse` etc. Anthropic providers accepted the
+  loose shape silently, masking the bug. The defensive floor keeps
+  the catalog valid even when an individual tool forgets to declare
+  its element type; per-call-site cleanup to declare proper item
+  types (better LLM guidance) is downstream in the tool repos.
+
+### Added
+
+- **Strict-schema unit test suite for `ParameterSchema`.** New
+  `tests/unit/test_parameter_schema_openai.py` pins six cases:
+  defensive `items` floor, caller override preservation,
+  non-array immunity, nested object-array round-trip, optional
+  + default behaviour, and (skipped when `jsonschema` isn't
+  installed) full Draft 2020-12 validation. The strict gate
+  catches future regressions on OpenAI compatibility.
+- **`jsonschema>=4.21` added to the dev dependency group** so CI
+  runs the optional Draft 2020-12 validator step instead of
+  silently skipping it. No runtime impact (test-only).
+
 ## [0.1.0a6] — 2026-05-11
 
 ### Added
