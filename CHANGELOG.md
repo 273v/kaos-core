@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`kaos_core.path_resolver`** — `resolve_input_path()` async context
+  manager + `ResolvedInput` / `ResolvedOrigin` value types +
+  `InputPathResolutionError` exception. Canonical resolver for
+  agent-supplied file/path inputs across every kaos-* MCP tool that
+  accepts a `path` parameter. Resolves four input shapes:
+  `kaos://artifacts/<uuid>` (artifact-store lookup with session
+  isolation), `kaos://<other>/...` (VFS read), relative path found in
+  the session VFS (extracted to temp), and absolute filesystem path
+  (passthrough). Reads from `KaosContext.runtime.vfs` /
+  `runtime.artifacts` with the caller's `session_id` so cross-session
+  artifact reads cannot succeed. Emits agent-friendly
+  what/how-to-fix/alternative-tool error triples on every failure path,
+  including mime-type and size-cap mismatches. Upstream fix for the
+  hallucination incident documented in
+  `kaos-modules/docs/plans/vfs-blind-tools-audit-and-fix-plan.md`:
+  every file-input tool in kaos-office / kaos-pdf / kaos-tabular /
+  kaos-source can now drop its raw `Path(p).exists()` calls and route
+  through this helper so SPA-uploaded files become visible.
+
 ## [0.1.0a8] — 2026-05-17
 
 ### Added

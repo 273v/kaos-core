@@ -52,6 +52,12 @@ from kaos_core.mcp_types import (
     SamplingResponse,
     TaskManager,
 )
+from kaos_core.path_resolver import (
+    InputPathResolutionError,
+    ResolvedInput,
+    ResolvedOrigin,
+    resolve_input_path,
+)
 from kaos_core.prompts import PromptTemplate, TemplateVariable, build_system_prompt
 from kaos_core.protocol import (
     ClientCapabilities,
@@ -163,6 +169,7 @@ __all__ = [
     "Implementation",
     "InitializeRequest",
     "InitializeResult",
+    "InputPathResolutionError",
     "IsolationMode",
     "KaosContext",
     "KaosCoreArtifactSettings",
@@ -189,6 +196,8 @@ __all__ = [
     "PromptRegistry",
     "PromptTemplate",
     "RegistryError",
+    "ResolvedInput",
+    "ResolvedOrigin",
     "ResourceAnnotations",
     "ResourceError",
     "ResourceLinkContent",
@@ -250,6 +259,7 @@ __all__ = [
     "read_capped_bytes",
     "read_capped_json",
     "register_core_tools",
+    "resolve_input_path",
     "resolve_secret",
     "validate_outbound_url",
 ]
