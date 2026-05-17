@@ -7,6 +7,72 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a8] — 2026-05-17
+
+### Added
+
+- **`ArtifactStore.create_from_bytes(data, ...)`** — canonical path
+  for tools that produce content in memory (HTTP fetches, document
+  conversions, LLM-generated payloads) and need to expose it via the
+  artifact tiering (summary inline / summary + link / link-only) rather
+  than inlining a truncated string into the `ToolResult`. Until now,
+  tools had to choose between `create_from_path` (forces a pre-existing
+  VFS file) or inlining a Python string and hardcoding a `max_chars`
+  cap. The latter is the anti-pattern the broader artifact-first plan
+  is removing across `kaos-source`, `kaos-web`, and `kaos-agents`.
+  Sanitises `name` before joining with `subdir` so caller-supplied
+  names cannot escape the artifacts directory. Optional `source_uri`
+  parameter to populate the new first-class field below.
+
+- **`ArtifactManifest.source_uri: str | None`** as a first-class
+  field on the manifest (was previously buried in the free-form
+  `provenance` / `metadata` dicts). Lets agents and the SPA render
+  provenance — "where did this come from?" — directly from the
+  manifest without dict spelunking. `create_from_path` and
+  `create_from_bytes` both accept the parameter. `None` for purely
+  derived or user-uploaded artifacts.
+
+- **`KaosCoreArtifactSettings`** (`kaos_core.artifacts.settings`,
+  `kaos_core.KaosCoreArtifactSettings`) — typed `ModuleSettings` with
+  `inline_threshold` and `summary_threshold` fields, env prefix
+  `KAOS_CORE_ARTIFACT_`. Authoritative source for the inline / summary
+  / handle-only tier thresholds. `ArtifactManifest.to_tool_result`
+  accepts an optional `settings` parameter; the module-level
+  `INLINE_THRESHOLD` / `SUMMARY_THRESHOLD` constants are now derived
+  from the default settings instance so existing imports keep working
+  unchanged. Per-deployment overrides:
+
+  ```bash
+  export KAOS_CORE_ARTIFACT_INLINE_THRESHOLD=32768
+  export KAOS_CORE_ARTIFACT_SUMMARY_THRESHOLD=524288
+  ```
+
+### Why
+
+This is Stage A of the cross-package
+`no-hardcoded-caps-and-artifact-first-tool-results` plan (lives in the
+kaos-modules monorepo at
+`docs/plans/no-hardcoded-caps-and-artifact-first-tool-results.md`).
+Stage A is the critical-path foundation; downstream stages (kaos-mcp
+serving `kaos://artifacts/{id}/{body,manifest,range}` resources,
+`kaos-source` and `kaos-web` migrating fetch tools off `max_chars`
+truncation, kaos-agents `ArtifactToCorpusHook`, kaos-ui `ArtifactCard`)
+all depend on these primitives being available.
+
+### Backward compatibility
+
+- `INLINE_THRESHOLD` and `SUMMARY_THRESHOLD` module-level constants
+  remain exported from `kaos_core.artifacts` and `kaos_core` with the
+  same default values (16 KiB / 256 KiB). Downstream consumers
+  (`kaos-agents`, `kaos-content`, `kaos-llm-core`) import them by name
+  and continue to resolve to the same values.
+- `to_tool_result(...)` keyword-arg signature is purely additive
+  (`settings` is optional).
+- `create_from_path(...)` keyword-arg signature is purely additive
+  (`source_uri` is optional and defaults to `None`).
+- New `ArtifactManifest.source_uri` field has a `None` default, so
+  manifests persisted under earlier versions deserialize cleanly.
+
 ## [0.1.0a7] — 2026-05-15
 
 ### Fixed
