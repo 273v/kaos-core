@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from pydantic import Field
 
+from kaos_core.artifacts.settings import KaosCoreArtifactSettings
 from kaos_core.types.content import KaosModel, ResourceLinkContent
 from kaos_core.types.enums import ArtifactRetentionPolicy, ArtifactRole
 
@@ -12,10 +13,13 @@ if TYPE_CHECKING:
     from kaos_core.types.results import ToolResult
 
 # ---------------------------------------------------------------------------
-# Inline threshold constants (bytes)
+# Inline threshold constants (bytes) — defaults exposed as module-level names
+# for backward compatibility. The authoritative source is
+# :class:`KaosCoreArtifactSettings` (env-overridable, context-overridable).
 # ---------------------------------------------------------------------------
-INLINE_THRESHOLD = 16_384  # 16 KB — below this, inline content is fine
-SUMMARY_THRESHOLD = 262_144  # 256 KB — above this, handle-only (no body inline)
+_DEFAULT_ARTIFACT_SETTINGS = KaosCoreArtifactSettings()
+INLINE_THRESHOLD = _DEFAULT_ARTIFACT_SETTINGS.inline_threshold
+SUMMARY_THRESHOLD = _DEFAULT_ARTIFACT_SETTINGS.summary_threshold
 
 
 class ArtifactRef(KaosModel):
@@ -42,6 +46,14 @@ class ArtifactManifest(KaosModel):
     created_at: str | None = None
     modified_at: str | None = None
     path: str
+    source_uri: str | None = None
+    """Originating URI for materialised content (e.g. ``https://www.federalregister.gov/...``).
+
+    First-class because downstream agents and the SPA need to render
+    provenance ("where did this come from?") without spelunking the
+    free-form ``provenance`` or ``metadata`` dicts. ``None`` for purely
+    derived or user-uploaded artifacts.
+    """
     provenance: dict[str, Any] = Field(default_factory=dict)
     retention_policy: ArtifactRetentionPolicy | None = ArtifactRetentionPolicy.SESSION
     expires_at: str | None = None
@@ -99,26 +111,33 @@ class ArtifactManifest(KaosModel):
         summary: str | None = None,
         structured_content: dict[str, Any] | None = None,
         inline_body: str | None = None,
+        settings: KaosCoreArtifactSettings | None = None,
     ) -> ToolResult:
         """Create a ToolResult respecting inline thresholds.
 
-        - size < INLINE_THRESHOLD: inline body (if provided) or summary + link
-        - size < SUMMARY_THRESHOLD: summary + resource link
-        - size >= SUMMARY_THRESHOLD: resource link only (handle-only)
+        Tiers (thresholds resolved from ``settings`` or
+        :class:`KaosCoreArtifactSettings` defaults; both env-overridable):
+
+        - size < ``inline_threshold``: inline body (if provided) or summary + link
+        - size < ``summary_threshold``: summary + resource link
+        - size >= ``summary_threshold``: resource link only (handle-only)
         """
         from kaos_core.types.content import TextContent
         from kaos_core.types.results import ToolResult
 
+        resolved = settings or _DEFAULT_ARTIFACT_SETTINGS
+        inline_threshold = resolved.inline_threshold
+
         link = self.to_resource_link()
         content: list[TextContent | ResourceLinkContent] = []
 
-        if self.size < INLINE_THRESHOLD and inline_body is not None:
+        if self.size < inline_threshold and inline_body is not None:
             content.append(TextContent(text=inline_body))
         elif summary is not None:
             content.append(TextContent(text=summary))
 
         # Always include the resource link for non-tiny artifacts
-        if self.size >= INLINE_THRESHOLD or inline_body is None:
+        if self.size >= inline_threshold or inline_body is None:
             content.append(link)
 
         return ToolResult(

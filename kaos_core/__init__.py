@@ -5,6 +5,7 @@ from kaos_core.artifacts import (
     ArtifactManifest,
     ArtifactRef,
     ArtifactStore,
+    KaosCoreArtifactSettings,
 )
 from kaos_core.base import KaosContext, KaosPrompt, KaosResource, KaosTool
 from kaos_core.config import (
@@ -164,6 +165,7 @@ __all__ = [
     "InitializeResult",
     "IsolationMode",
     "KaosContext",
+    "KaosCoreArtifactSettings",
     "KaosCoreError",
     "KaosPrompt",
     "KaosResource",

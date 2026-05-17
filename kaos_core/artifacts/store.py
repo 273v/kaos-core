@@ -219,6 +219,7 @@ class ArtifactStore:
         description: str | None = None,
         mime_type: str | None = None,
         role: ArtifactRole = ArtifactRole.BODY,
+        source_uri: str | None = None,
         provenance: dict[str, Any] | None = None,
         retention_policy: ArtifactRetentionPolicy | str | None = ArtifactRetentionPolicy.SESSION,
         metadata: dict[str, Any] | None = None,
@@ -267,6 +268,99 @@ class ArtifactStore:
             created_at=stat.created_at,
             modified_at=stat.modified_at,
             path=normalized_path,
+            source_uri=source_uri,
+            provenance=provenance or {},
+            retention_policy=resolved_policy,
+            expires_at=expires_at,
+            metadata=metadata or {},
+        )
+        self.register(manifest)
+        await self._persist_manifest(manifest)
+        return manifest
+
+    async def create_from_bytes(
+        self,
+        data: bytes,
+        *,
+        context_id: str,
+        session_id: str,
+        name: str,
+        workflow_id: str | None = None,
+        description: str | None = None,
+        mime_type: str | None = None,
+        role: ArtifactRole = ArtifactRole.BODY,
+        source_uri: str | None = None,
+        provenance: dict[str, Any] | None = None,
+        retention_policy: ArtifactRetentionPolicy | str | None = ArtifactRetentionPolicy.SESSION,
+        metadata: dict[str, Any] | None = None,
+        checksum: bool = False,
+        ttl_seconds: int | None = None,
+        subdir: str = "artifacts",
+    ) -> ArtifactManifest:
+        """Materialise ``data`` into the VFS and create an artifact manifest.
+
+        Canonical path for tools that produce content in memory (HTTP
+        fetches, document conversions, LLM-generated payloads) and need to
+        expose it via the artifact / resource-link tiering rather than
+        inlining a truncated string into the tool result. Use
+        :meth:`create_from_path` when content is already on disk.
+
+        ``name`` is the human-facing manifest name; the VFS filename
+        component is derived from it (sanitised, prefixed with the
+        artifact_id to guarantee uniqueness).
+        """
+        if not isinstance(data, bytes | bytearray):
+            msg = "Artifact data must be bytes"
+            raise TypeError(msg)
+
+        resolved_policy = (
+            ArtifactRetentionPolicy(retention_policy)
+            if retention_policy is not None
+            else ArtifactRetentionPolicy.SESSION
+        )
+        if ttl_seconds is not None and ttl_seconds <= 0:
+            msg = "Artifact TTL must be positive"
+            raise ValueError(msg)
+
+        artifact_id = str(uuid4())
+        safe_name = name.replace("/", "_").replace("\\", "_") or "artifact"
+        relative_path = self._vfs.safe_join(subdir, f"{artifact_id}-{safe_name}")
+        payload = bytes(data)
+
+        await self._vfs.write(relative_path, payload, context_id=context_id)
+        stat = await self._vfs.stat(relative_path, context_id=context_id)
+        if not stat.exists or stat.kind != "file":
+            raise ResourceError(
+                "Artifact write failed",
+                artifact_id=artifact_id,
+                path=relative_path,
+            )
+
+        checksum_value: str | None = None
+        if checksum:
+            checksum_value = sha256(payload).hexdigest()
+
+        expires_at: str | None = None
+        if resolved_policy is ArtifactRetentionPolicy.TEMPORARY:
+            ttl = ttl_seconds or self._temporary_ttl_seconds
+            expires_at = (datetime.now(tz=UTC) + timedelta(seconds=ttl)).isoformat()
+
+        manifest = ArtifactManifest(
+            artifact_id=artifact_id,
+            session_id=session_id,
+            context_id=context_id,
+            workflow_id=workflow_id,
+            name=name,
+            description=description,
+            uri=f"kaos://artifacts/{artifact_id}",
+            role=role,
+            mime_type=mime_type or stat.mime_type,
+            size=stat.size,
+            checksum=checksum_value,
+            created_at=stat.created_at,
+            modified_at=stat.modified_at,
+            path=relative_path,
+            source_uri=source_uri,
             provenance=provenance or {},
             retention_policy=resolved_policy,
             expires_at=expires_at,

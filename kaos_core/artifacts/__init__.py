@@ -4,6 +4,7 @@ from kaos_core.artifacts.models import (
     ArtifactManifest,
     ArtifactRef,
 )
+from kaos_core.artifacts.settings import KaosCoreArtifactSettings
 from kaos_core.artifacts.store import ArtifactStore
 
 __all__ = [
@@ -12,4 +13,5 @@ __all__ = [
     "ArtifactManifest",
     "ArtifactRef",
     "ArtifactStore",
+    "KaosCoreArtifactSettings",
 ]
