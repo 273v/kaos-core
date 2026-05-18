@@ -73,6 +73,8 @@ logger = get_logger(__name__)
 _ARTIFACT_ID_RE = re.compile(r"[A-Za-z0-9_-]+")
 _ARTIFACT_URI_PREFIX = "kaos://artifacts/"
 _KAOS_URI_SCHEME = "kaos://"
+_VFS_URI_SCHEME = "vfs://"
+_FILE_URI_SCHEME = "file://"
 
 
 class ResolvedOrigin(StrEnum):
@@ -264,10 +266,10 @@ async def _resolve(
         raise InputPathResolutionError(
             what="Empty or non-string path input",
             how_to_fix=(
-                "Pass either an absolute filesystem path, a "
-                "kaos://artifacts/<id> URI for an artifact you previously "
-                "materialised, or a relative path that exists in the "
-                "session VFS (e.g. files uploaded through the host UI)"
+                "Pass a bare filename (resolved inside the session VFS "
+                "default namespace), a kaos://artifacts/<id> URI, a "
+                "vfs://<path> or kaos://<vfs-path>, or a file:///abs/path "
+                "for an absolute filesystem location"
             ),
             requested=str(path_or_uri or ""),
         )
@@ -328,36 +330,72 @@ async def _resolve(
             requested=path_or_uri,
         )
 
-    # 3 & 4. Plain path — try VFS first (scoped to session), then absolute filesystem.
-    if not _looks_absolute(stripped):
-        try:
-            return await _resolve_vfs(
-                stripped,
-                context=context,
-                allowed_mime_types=allowed_mime_types,
-                max_bytes=max_bytes,
+    # 3. file:///abs/path  -- explicit absolute filesystem read (CLI / trusted-source).
+    if stripped.startswith(_FILE_URI_SCHEME):
+        # urlparse handles both file:///abs and file://localhost/abs.
+        parsed = urlparse(stripped)
+        fs_path = parsed.path or ""
+        if not fs_path or not _looks_absolute(fs_path):
+            raise InputPathResolutionError(
+                what=f"Malformed file:// URI: {stripped!r}",
+                how_to_fix=(
+                    "file:// URIs must encode an absolute path, e.g. "
+                    "file:///home/user/contract.pdf. Hosts running through "
+                    "an MCP / agent context should prefer a VFS-relative name "
+                    "(resolved inside the session's default namespace) or "
+                    "kaos://artifacts/<id> instead"
+                ),
                 requested=path_or_uri,
             )
-        except InputPathResolutionError as vfs_exc:
-            # Fall through to the absolute-path branch only when the VFS
-            # could not find the file. Mime / size mismatches are real
-            # failures and should be raised as-is.
-            if "mime" in vfs_exc.what.lower() or "exceed" in vfs_exc.what.lower():
-                raise
-            # Save the VFS attempt for the final error if the filesystem
-            # check also fails.
-            return _resolve_filesystem(
-                stripped,
-                allowed_mime_types=allowed_mime_types,
-                requested=path_or_uri,
-                vfs_attempt_failure=vfs_exc,
-            )
+        return _resolve_filesystem(
+            fs_path,
+            allowed_mime_types=allowed_mime_types,
+            requested=path_or_uri,
+        )
 
-    return _resolve_filesystem(
-        stripped,
+    # 4. vfs://<path>  -- explicit VFS read, NO default-namespace prepend.
+    if stripped.startswith(_VFS_URI_SCHEME):
+        vfs_path = stripped[len(_VFS_URI_SCHEME) :]
+        return await _resolve_vfs(
+            vfs_path,
+            context=context,
+            allowed_mime_types=allowed_mime_types,
+            max_bytes=max_bytes,
+            requested=path_or_uri,
+        )
+
+    # 5. Raw absolute path with no scheme -- REJECTED in 0.1.0a10. Tells the
+    #    caller exactly how to disambiguate. This closes the
+    #    "agent guesses /etc/passwd" foot-gun and forces hosts to opt into
+    #    filesystem reads via file://.
+    if _looks_absolute(stripped):
+        raise InputPathResolutionError(
+            what=(
+                f"Absolute filesystem path without scheme: {stripped!r}. "
+                "The kaos-core path resolver requires an explicit scheme "
+                "for filesystem reads in 0.1.0a10+"
+            ),
+            how_to_fix=(
+                "Use file://" + stripped + " if you genuinely need to read "
+                "an absolute filesystem path (CLI / trusted-source flow), or "
+                "drop the leading '/' and pass a name that resolves inside "
+                "the session VFS default namespace"
+            ),
+            alternative_tool="kaos-core-vfs-list to see what's in the session VFS",
+            requested=path_or_uri,
+        )
+
+    # 6. Bare name. Prepend the context's default VFS namespace (e.g. "files/"
+    #    when the SPA backend has wired one) and resolve through the VFS.
+    #    No CWD / absolute-filesystem fallback in 0.1.0a10+.
+    namespace = getattr(context, "default_vfs_namespace", "") or ""
+    vfs_lookup = namespace + stripped if namespace else stripped
+    return await _resolve_vfs(
+        vfs_lookup,
+        context=context,
         allowed_mime_types=allowed_mime_types,
+        max_bytes=max_bytes,
         requested=path_or_uri,
-        vfs_attempt_failure=None,
     )
 
 
@@ -486,12 +524,19 @@ async def _resolve_vfs(
         ) from exc
 
     if not exists:
+        namespace = getattr(context, "default_vfs_namespace", "") or ""
+        ns_hint = (
+            f" Note: bare filenames are resolved inside the session's "
+            f"default namespace ({namespace!r}). Use vfs://{vfs_path} to "
+            "bypass the namespace prefix."
+            if namespace
+            else ""
+        )
         raise InputPathResolutionError(
             what=f"VFS path {vfs_path!r} not found in session {context.session_id!r}",
             how_to_fix=(
                 "Verify the file is uploaded to this session. Listing the "
-                "session VFS may help. Note that bare filenames are resolved "
-                "session-scoped, not from the process CWD"
+                "session VFS shows what's reachable." + ns_hint
             ),
             alternative_tool="kaos-core-vfs-list to see what's in this session",
             requested=requested,
@@ -542,20 +587,16 @@ def _resolve_filesystem(
     *,
     allowed_mime_types: tuple[str, ...] | None,
     requested: str,
-    vfs_attempt_failure: InputPathResolutionError | None,
 ) -> ResolvedInput:
     p = Path(path_str).expanduser()
     if not p.exists():
-        what = f"Filesystem path {path_str!r} not found"
-        if vfs_attempt_failure is not None:
-            what = f"Path {path_str!r} not found in session VFS or on the local filesystem"
         raise InputPathResolutionError(
-            what=what,
+            what=f"Filesystem path {path_str!r} not found",
             how_to_fix=(
-                "If the file was uploaded through the host UI, use a "
-                "kaos:// URI or the relative VFS path that the upload "
-                "endpoint returned. If you have a local file, pass an "
-                "absolute path"
+                "Pass a path that exists. For SPA-uploaded files use a bare "
+                "filename (resolved inside the session VFS default namespace) "
+                "or kaos://artifacts/<id>. For absolute local paths use "
+                "file:///abs/path"
             ),
             alternative_tool="kaos-core-vfs-list to see what's in this session",
             requested=requested,

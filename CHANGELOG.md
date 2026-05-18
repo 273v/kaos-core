@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a10] — 2026-05-17
+
+### Changed — BREAKING
+
+- **URI contract redesign for `resolve_input_path()`** (closes the user-
+  outcome gap left by 0.1.0a9; see
+  `kaos-modules/docs/plans/uri-contract-redesign.md`). Agent-facing
+  contract is now:
+
+  | Input shape                          | Resolution                                          |
+  |--------------------------------------|-----------------------------------------------------|
+  | bare name (`"contract.docx"`)        | session VFS prepended with `context.default_vfs_namespace` (no CWD fallback) |
+  | `file:///abs/path`                   | absolute filesystem (CLI / trusted)                 |
+  | `kaos://artifacts/<id>`              | artifact store (session-scoped) — unchanged         |
+  | `kaos://<vfs>/...` / `vfs://<path>`  | explicit VFS path (default-namespace NOT prepended) |
+  | raw `/abs/path` (no scheme)          | **REJECTED** with an actionable error               |
+
+  Pre-0.1.0a10 "bare name → try VFS then CWD" fallback removed. Hosts
+  that exposed bare names from agent inputs should now declare the
+  session's upload prefix via `context.default_vfs_namespace` (e.g.
+  the kaos-ui SPA backend sets `"files/"`). CLI users passing absolute
+  paths must switch to `file:///abs/path`.
+
+- **`kaos-core-vfs-list`** now lists inside `context.default_vfs_namespace`
+  when no explicit `path` is supplied so bare-name agents can discover
+  what their lookups will hit.
+
+### Added
+
+- **`KaosContext.default_vfs_namespace`** field (default `""`).
+- **`KaosContext.with_default_namespace(ns)`** child-context helper.
+- **`vfs://<path>`** URI scheme and **`file:///abs/path`** URI scheme.
+- 9 new unit tests covering the redesigned contract.
+
+### Migration
+
+- **CLI callers** passing absolute paths: prefix with `file://`.
+- **Host backends** (e.g. kaos-ui SPA): set
+  `context.default_vfs_namespace = "files/"` per session.
+- Pass-through tools (those that hand the raw `path` to
+  `resolve_input_path()`) need no change.
+
 ## [0.1.0a9] — 2026-05-17
 
 ### Added
