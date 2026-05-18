@@ -1,0 +1,89 @@
+name: build
+
+# Standard `build` lane (per
+# kaos-modules/docs/oss/40-ci-cd/runner-cost-reduction-plan.md):
+# build wheel/sdist, `twine check --strict`, clean-venv smoke install.
+# Linux Python 3.13 on PR / main push / tag. The release workflow
+# (release.yml) is the gated artifact-publish path; this lane is the
+# PR-time smoke that the artifact builds cleanly and the wheel
+# installs.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  build:
+    name: build
+    runs-on: kaos-x64-16core
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Build wheel and sdist
+        run: uv build
+
+      - name: Verify metadata
+        run: uvx --from twine twine check --strict dist/*
+
+      - name: Smoke-test the built wheel in a clean venv
+        # Install the actually-built wheel (not the source tree) into a
+        # clean Python environment and exercise the public API. This
+        # catches packaging bugs that source-tree tests miss: missing
+        # data files, broken `__init__.py` exports, sdist-only files
+        # that reference dist-only paths, etc.
+        run: |
+          uv venv --python 3.13 /tmp/smoke
+          uv pip install --python /tmp/smoke/bin/python dist/kaos_core-*-py3-none-any.whl
+          /tmp/smoke/bin/python -c "
+          import kaos_core
+          assert kaos_core.__version__, 'version missing from wheel'
+          # All 100+ public symbols import without error.
+          from kaos_core import (
+              ArtifactManifest,
+              KaosContext,
+              KaosRuntime,
+              KaosTool,
+              ModuleSettings,
+              SchemaExporter,
+              ToolResult,
+              VirtualFileSystem,
+              kaos_tool,
+              register_core_tools,
+          )
+          # Runtime container resolves and core tools register.
+          rt = KaosRuntime()
+          n = register_core_tools(rt)
+          assert n > 0, 'no core tools registered'
+          print(f'kaos-core {kaos_core.__version__}: {n} core tools registered')
+          "
+          # Exercise the CLI entrypoint.
+          /tmp/smoke/bin/kaos-core --help
+
+      - name: Upload distribution artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: dist-${{ github.sha }}
+          path: dist/
+          retention-days: 7

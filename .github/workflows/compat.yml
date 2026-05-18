@@ -1,0 +1,79 @@
+name: compat
+
+# Standard `compat` lane (per
+# kaos-modules/docs/oss/40-ci-cd/runner-cost-reduction-plan.md):
+# interpreter + OS drift detection. NOT a PR / main-push lane — runs
+# weekly, on manual dispatch, and on release tags. The PR contract is
+# kept to Linux Python 3.13 via the `test` lane; cross-OS and
+# preview-Python coverage live here.
+#
+# Matrix:
+#   - Linux x64: Python 3.14, 3.14t, 3.15
+#   - macOS arm64: Python 3.13 smoke
+#   - Windows x64: Python 3.13 smoke
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"  # Mondays at 05:17 UTC
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: test (${{ matrix.display-os }} / Python ${{ matrix.python-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - python-version: "3.14"
+            os: kaos-x64-16core
+            display-os: linux-x64
+          - python-version: "3.14t"
+            os: kaos-x64-16core
+            display-os: linux-x64
+          - python-version: "3.15"
+            os: kaos-x64-16core
+            display-os: linux-x64
+          - python-version: "3.13"
+            os: macos-14
+            display-os: macos-arm64
+          - python-version: "3.13"
+            os: windows-latest
+            display-os: windows-x64
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: compat-${{ matrix.display-os }}-py${{ matrix.python-version }}
+
+      - name: Install Python ${{ matrix.python-version }}
+        run: uv python install --preview ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --group dev --python ${{ matrix.python-version }}
+
+      - name: Run tests
+        shell: bash
+        run: |
+          uv run pytest \
+            -m "not live and not network and not slow" \
+            --no-cov -q
