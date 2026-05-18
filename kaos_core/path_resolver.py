@@ -54,6 +54,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urlparse
+from urllib.request import url2pathname
 
 from kaos_core.exceptions import KaosCoreError
 from kaos_core.logging import get_logger
@@ -332,18 +333,26 @@ async def _resolve(
 
     # 3. file:///abs/path  -- explicit absolute filesystem read (CLI / trusted-source).
     if stripped.startswith(_FILE_URI_SCHEME):
-        # urlparse handles both file:///abs and file://localhost/abs.
-        parsed = urlparse(stripped)
-        fs_path = parsed.path or ""
+        # url2pathname handles both POSIX (file:///abs) and Windows
+        # (file:///C:/...) shapes correctly. urlparse alone strips the
+        # drive letter on Windows; url2pathname puts it back.
+        try:
+            parsed = urlparse(stripped)
+            # url2pathname expects the path with leading slash on POSIX and
+            # /C:/... on Windows. parsed.path is exactly that.
+            fs_path = url2pathname(parsed.path) if parsed.path else ""
+        except Exception:
+            fs_path = ""
         if not fs_path or not _looks_absolute(fs_path):
             raise InputPathResolutionError(
                 what=f"Malformed file:// URI: {stripped!r}",
                 how_to_fix=(
                     "file:// URIs must encode an absolute path, e.g. "
-                    "file:///home/user/contract.pdf. Hosts running through "
-                    "an MCP / agent context should prefer a VFS-relative name "
-                    "(resolved inside the session's default namespace) or "
-                    "kaos://artifacts/<id> instead"
+                    "file:///home/user/contract.pdf (POSIX) or "
+                    "file:///C:/Users/me/contract.pdf (Windows). Hosts "
+                    "running through an MCP / agent context should prefer "
+                    "a VFS-relative name (resolved inside the session's "
+                    "default namespace) or kaos://artifacts/<id> instead"
                 ),
                 requested=path_or_uri,
             )

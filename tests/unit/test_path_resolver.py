@@ -257,7 +257,9 @@ async def test_absolute_path_is_passthrough_no_temp_copy(tmp_path: Path) -> None
     real = tmp_path / "real.txt"
     real.write_bytes(b"on-disk bytes")
 
-    async with resolve_input_path(f"file://{real}", context=ctx) as resolved:
+    # Path.as_uri() produces the cross-platform canonical form:
+    # POSIX: file:///tmp/.../real.txt, Windows: file:///C:/.../real.txt
+    async with resolve_input_path(real.as_uri(), context=ctx) as resolved:
         assert resolved.origin is ResolvedOrigin.FILESYSTEM
         assert resolved.path == real
         assert resolved.path.exists()
@@ -304,7 +306,7 @@ async def test_filesystem_mime_mismatch_blocks_before_open(tmp_path: Path) -> No
     real.write_bytes(b"<!doctype html>")
     with pytest.raises(InputPathResolutionError) as exc_info:
         async with resolve_input_path(
-            f"file://{real}",
+            real.as_uri(),
             context=ctx,
             allowed_mime_types=("application/pdf",),
         ):
@@ -413,7 +415,7 @@ async def test_file_scheme_resolves_absolute_filesystem(tmp_path: Path) -> None:
     ctx = _context(runtime)
     real = tmp_path / "doc.txt"
     real.write_bytes(b"local file")
-    async with resolve_input_path(f"file://{real}", context=ctx) as resolved:
+    async with resolve_input_path(real.as_uri(), context=ctx) as resolved:
         assert resolved.origin is ResolvedOrigin.FILESYSTEM
         assert resolved.path == real
 
