@@ -15,6 +15,23 @@ ProgressCallback = Callable[[float, float | None, str | None], Awaitable[None] |
 _T = TypeVar("_T")
 
 
+def _normalize_default_namespace(namespace: str) -> str:
+    """Normalize a default VFS namespace string.
+
+    - Empty / None / whitespace -> "".
+    - Strips leading "/" so callers can pass either "files/" or "/files/".
+    - Ensures trailing "/" so prepending is a plain string concat.
+    """
+    if not namespace:
+        return ""
+    cleaned = namespace.strip().lstrip("/")
+    if not cleaned:
+        return ""
+    if not cleaned.endswith("/"):
+        cleaned = cleaned + "/"
+    return cleaned
+
+
 class KaosContext:
     def __init__(
         self,
@@ -29,6 +46,7 @@ class KaosContext:
         runtime: Any = None,
         config: dict[str, Any] | None = None,
         vfs: Any = None,
+        default_vfs_namespace: str = "",
     ) -> None:
         self.session_id = session_id
         self.trace_id = trace_id
@@ -40,6 +58,7 @@ class KaosContext:
         self.runtime = runtime
         self._config = config or {}
         self._vfs = vfs
+        self.default_vfs_namespace = _normalize_default_namespace(default_vfs_namespace)
         self._progress_callback: ProgressCallback | None = None
         self._logger = get_logger("kaos.context")
         self._logger.addFilter(ContextFilter(session_id=session_id, trace_id=trace_id))
@@ -167,6 +186,17 @@ class KaosContext:
     def get_vfs_path(self, path: str) -> Any:
         return self.vfs.get_path(path, context_id=self.session_id)
 
+    def with_default_namespace(self, namespace: str) -> KaosContext:
+        """Return a child context with a different default VFS namespace.
+
+        Used by hosts (e.g. the kaos-ui single-user-chat backend) to declare
+        that bare-name file inputs from agents should be looked up inside a
+        well-known sub-prefix (e.g. ``"files/"``) of the session VFS.
+        Resolver / vfs-list honor this when the caller does not supply an
+        explicit scheme (``file://``, ``kaos://``, ``vfs://``).
+        """
+        return self.create_child_context(default_vfs_namespace=namespace)
+
     def create_child_context(self, **kwargs: Any) -> KaosContext:
         child_metadata = {**self.metadata, **kwargs.pop("metadata", {})}
         return KaosContext(
@@ -180,6 +210,7 @@ class KaosContext:
             runtime=kwargs.pop("runtime", self.runtime),
             config={**self._config, **kwargs.pop("config", {})},
             vfs=kwargs.pop("vfs", self._vfs),
+            default_vfs_namespace=kwargs.pop("default_vfs_namespace", self.default_vfs_namespace),
         )
 
     async def cleanup(self) -> None:

@@ -251,12 +251,15 @@ async def test_relative_path_not_in_vfs_falls_through_to_clear_error(tmp_path: P
 
 
 async def test_absolute_path_is_passthrough_no_temp_copy(tmp_path: Path) -> None:
+    """0.1.0a10 contract: absolute filesystem reads require file:// scheme."""
     runtime = _make_runtime(tmp_path)
     ctx = _context(runtime)
     real = tmp_path / "real.txt"
     real.write_bytes(b"on-disk bytes")
 
-    async with resolve_input_path(str(real), context=ctx) as resolved:
+    # Path.as_uri() produces the cross-platform canonical form:
+    # POSIX: file:///tmp/.../real.txt, Windows: file:///C:/.../real.txt
+    async with resolve_input_path(real.as_uri(), context=ctx) as resolved:
         assert resolved.origin is ResolvedOrigin.FILESYSTEM
         assert resolved.path == real
         assert resolved.path.exists()
@@ -266,15 +269,29 @@ async def test_absolute_path_is_passthrough_no_temp_copy(tmp_path: Path) -> None
     assert real.read_bytes() == b"on-disk bytes"
 
 
+async def test_raw_absolute_path_rejected_with_actionable_error(tmp_path: Path) -> None:
+    """0.1.0a10 BREAKING: raw absolute paths must be wrapped in file://."""
+    runtime = _make_runtime(tmp_path)
+    ctx = _context(runtime)
+    real = tmp_path / "real.txt"
+    real.write_bytes(b"x")
+    with pytest.raises(InputPathResolutionError) as exc_info:
+        async with resolve_input_path(str(real), context=ctx):
+            pass  # pragma: no cover
+    msg = str(exc_info.value)
+    assert "file://" in msg
+    assert "without scheme" in msg.lower() or "absolute" in msg.lower()
+
+
 async def test_absolute_path_missing_yields_clean_error(tmp_path: Path) -> None:
     runtime = _make_runtime(tmp_path)
     ctx = _context(runtime)
     with pytest.raises(InputPathResolutionError) as exc_info:
-        async with resolve_input_path("/this/does/not/exist.docx", context=ctx):
+        async with resolve_input_path("file:///this/does/not/exist.docx", context=ctx):
             pass  # pragma: no cover
     msg = str(exc_info.value)
     assert "not found" in msg.lower()
-    assert "kaos-core-vfs-list" in msg or "absolute" in msg
+    assert "kaos-core-vfs-list" in msg or "file://" in msg
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +306,7 @@ async def test_filesystem_mime_mismatch_blocks_before_open(tmp_path: Path) -> No
     real.write_bytes(b"<!doctype html>")
     with pytest.raises(InputPathResolutionError) as exc_info:
         async with resolve_input_path(
-            str(real),
+            real.as_uri(),
             context=ctx,
             allowed_mime_types=("application/pdf",),
         ):
@@ -338,3 +355,117 @@ async def test_no_artifacts_store_raises_clean_error(tmp_path: Path) -> None:
         ):
             pass  # pragma: no cover
     assert "ArtifactStore" in str(exc_info.value) or "artifact store" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# 8. 0.1.0a10 URI contract redesign — file:// + vfs:// + default namespace
+# ---------------------------------------------------------------------------
+
+
+async def test_default_vfs_namespace_prepends_on_bare_name(tmp_path: Path) -> None:
+    """SPA-style: agent passes bare 'EMNA.docx'; resolver looks under 'files/'."""
+    runtime = _make_runtime(tmp_path)
+    ctx = KaosContext(
+        session_id="s-spa",
+        runtime=runtime,
+        vfs=runtime.vfs,
+        default_vfs_namespace="files/",
+    )
+    handle = ctx.get_vfs_path("files/contract.docx")
+    await handle.write_bytes(b"PK\x03\x04-fake-docx")
+
+    async with resolve_input_path("contract.docx", context=ctx) as resolved:
+        assert resolved.origin is ResolvedOrigin.VFS
+        assert resolved.path.read_bytes() == b"PK\x03\x04-fake-docx"
+
+
+async def test_default_namespace_normalisation_handles_slashes(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    # Caller passes '/files' or 'files' or 'files/' — all should normalise.
+    for raw in ("/files", "files", "files/", "  files  "):
+        ctx = KaosContext(
+            session_id="s-norm",
+            runtime=runtime,
+            vfs=runtime.vfs,
+            default_vfs_namespace=raw,
+        )
+        assert ctx.default_vfs_namespace == "files/"
+
+
+async def test_vfs_scheme_skips_default_namespace_prefix(tmp_path: Path) -> None:
+    """vfs://<path> is explicit; default-namespace prefix is NOT applied."""
+    runtime = _make_runtime(tmp_path)
+    ctx = KaosContext(
+        session_id="s-vfs-explicit",
+        runtime=runtime,
+        vfs=runtime.vfs,
+        default_vfs_namespace="files/",
+    )
+    # Write at root, not under files/.
+    handle = ctx.get_vfs_path("system/config.json")
+    await handle.write_bytes(b"{}")
+
+    async with resolve_input_path("vfs://system/config.json", context=ctx) as resolved:
+        assert resolved.origin is ResolvedOrigin.VFS
+        assert resolved.path.read_bytes() == b"{}"
+
+
+async def test_file_scheme_resolves_absolute_filesystem(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    ctx = _context(runtime)
+    real = tmp_path / "doc.txt"
+    real.write_bytes(b"local file")
+    async with resolve_input_path(real.as_uri(), context=ctx) as resolved:
+        assert resolved.origin is ResolvedOrigin.FILESYSTEM
+        assert resolved.path == real
+
+
+async def test_file_scheme_malformed_rejects_relative(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    ctx = _context(runtime)
+    with pytest.raises(InputPathResolutionError) as exc_info:
+        async with resolve_input_path("file://relative/path.txt", context=ctx):
+            pass  # pragma: no cover
+    msg = str(exc_info.value)
+    assert "file://" in msg
+    assert "absolute" in msg.lower()
+
+
+async def test_bare_name_without_namespace_uses_session_vfs_root(tmp_path: Path) -> None:
+    """When no default namespace is set, bare names look up at session VFS root."""
+    runtime = _make_runtime(tmp_path)
+    ctx = _context(runtime, session_id="s-no-ns")
+    handle = ctx.get_vfs_path("at-root.txt")
+    await handle.write_bytes(b"root bytes")
+    async with resolve_input_path("at-root.txt", context=ctx) as resolved:
+        assert resolved.origin is ResolvedOrigin.VFS
+        assert resolved.path.read_bytes() == b"root bytes"
+
+
+async def test_vfs_not_found_error_mentions_default_namespace_when_set(
+    tmp_path: Path,
+) -> None:
+    runtime = _make_runtime(tmp_path)
+    ctx = KaosContext(
+        session_id="s-hint",
+        runtime=runtime,
+        vfs=runtime.vfs,
+        default_vfs_namespace="files/",
+    )
+    with pytest.raises(InputPathResolutionError) as exc_info:
+        async with resolve_input_path("missing.docx", context=ctx):
+            pass  # pragma: no cover
+    msg = str(exc_info.value)
+    assert "files/" in msg
+    assert "vfs://" in msg
+
+
+async def test_with_default_namespace_returns_child_context(tmp_path: Path) -> None:
+    runtime = _make_runtime(tmp_path)
+    parent = _context(runtime, session_id="s-parent")
+    assert parent.default_vfs_namespace == ""
+    child = parent.with_default_namespace("files/")
+    assert child.default_vfs_namespace == "files/"
+    assert child.session_id == "s-parent"
+    # Parent is untouched.
+    assert parent.default_vfs_namespace == ""

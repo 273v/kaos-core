@@ -327,6 +327,16 @@ class VFSListTool(KaosTool):
         path = inputs.get("path", "")
         limit = inputs.get("limit", 50)
 
+        # When the caller asked for the root and the context has a
+        # default VFS namespace declared (e.g. SPA backend sets "files/"),
+        # default to listing inside that namespace so bare-name lookups
+        # the agent might attempt are discoverable. Pass a fully-qualified
+        # vfs://... path or kaos://<vfs>/... to bypass.
+        namespace = getattr(context, "default_vfs_namespace", "") or ""
+        effective_path = path
+        if not effective_path and namespace:
+            effective_path = namespace
+
         try:
             # Pass context.session_id so a tool listing the VFS only
             # sees its own session's namespace. Without this scope the
@@ -335,17 +345,17 @@ class VFSListTool(KaosTool):
             # scope — an isolation bug that hides session writes
             # behind a permissive default view.
             page = await context.runtime.vfs.list_page(
-                path, limit=limit, context_id=context.session_id
+                effective_path, limit=limit, context_id=context.session_id
             )
         except Exception as exc:
             return ToolResult.create_error(
-                f"VFS list failed for path '{path}': {exc}. "
+                f"VFS list failed for path '{effective_path}': {exc}. "
                 "Verify the path is valid. Use kaos-core-vfs-list with path='' to see root."
             )
 
         has_more = page.next_cursor is not None
         output = {
-            "path": path,
+            "path": effective_path,
             "items": page.items,
             "count": len(page.items),
             "has_more": has_more,
@@ -353,9 +363,11 @@ class VFSListTool(KaosTool):
         if has_more:
             output["next_cursor"] = page.next_cursor
 
-        summary = f"{len(page.items)} item(s) at '{path or '/'}'"
+        summary = f"{len(page.items)} item(s) at '{effective_path or '/'}'"
         if has_more:
             summary += " (more available)"
+        if namespace and not path:
+            summary += f" (default namespace: {namespace!r})"
         return ToolResult.create_success(output=output, summary=summary)
 
 
