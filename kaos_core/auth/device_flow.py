@@ -31,6 +31,9 @@ Injection points (all keyword-only):
 - ``poll_sleep`` — coroutine factory invoked between polls. The
   default uses :func:`asyncio.sleep`. Tests inject a no-op to
   fast-forward through the polling loop.
+- ``security_settings`` — optional outbound URL and response-size
+  policy. OAuth endpoints default to HTTPS-only plus the standard
+  private-network, loopback, metadata-service, and size guards.
 """
 
 from __future__ import annotations
@@ -40,6 +43,7 @@ from collections.abc import Awaitable, Callable, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from kaos_core.auth._http_safety import response_json, validate_oauth_endpoint
 from kaos_core.auth._token_response import parse_token_response
 from kaos_core.auth.errors import OAuthFlowError
 from kaos_core.logging import get_logger
@@ -48,6 +52,7 @@ if TYPE_CHECKING:
     import httpx
 
     from kaos_core.config.auth import OAuthToken
+    from kaos_core.security.settings import KaosSecuritySettings
 
 logger = get_logger(__name__)
 
@@ -103,6 +108,13 @@ class DeviceCodeFlow:
             for user-facing presentation.
         poll_sleep: Coroutine factory for the delay between polls.
             Tests inject a no-op.
+        security_settings: Optional outbound URL and response-size
+            policy. OAuth endpoints default to HTTPS-only plus the
+            standard private-network, loopback, metadata-service, and
+            size guards.
+        allowed_endpoint_schemes: Schemes accepted for OAuth endpoints.
+            Defaults to HTTPS-only; local test IdPs can opt into HTTP
+            explicitly.
     """
 
     timeout_seconds: float = 1800.0
@@ -110,6 +122,8 @@ class DeviceCodeFlow:
     http_client: httpx.AsyncClient | None = None
     display: Callable[[DeviceAuthorization], None] = _default_display
     poll_sleep: PollSleepCallable = _default_poll_sleep
+    security_settings: KaosSecuritySettings | None = None
+    allowed_endpoint_schemes: tuple[str, ...] = ("https",)
 
     async def run(
         self,
@@ -156,17 +170,18 @@ class DeviceCodeFlow:
         device_authorization_endpoint: str,
     ) -> DeviceAuthorization:
         form = {"client_id": client_id, "scope": " ".join(scopes)}
-        response = await client.post(
-            device_authorization_endpoint, data=form, timeout=self.timeout_seconds
+        endpoint = validate_oauth_endpoint(
+            device_authorization_endpoint,
+            label="Device authorization endpoint",
+            settings=self.security_settings,
+            allowed_schemes=self.allowed_endpoint_schemes,
         )
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            msg = (
-                f"Device authorization endpoint {device_authorization_endpoint} "
-                f"returned non-JSON (status {response.status_code})"
-            )
-            raise OAuthFlowError(msg) from exc
+        response = await client.post(endpoint, data=form, timeout=self.timeout_seconds)
+        payload = response_json(
+            response,
+            label="Device authorization endpoint",
+            settings=self.security_settings,
+        )
 
         if "error" in payload:
             msg = f"Device authorization error: {payload.get('error')}"
@@ -209,15 +224,18 @@ class DeviceCodeFlow:
         while elapsed < deadline:
             await self.poll_sleep(interval)
             elapsed += interval
-            response = await client.post(token_endpoint, data=form, timeout=self.timeout_seconds)
-            try:
-                payload = response.json()
-            except ValueError as exc:
-                msg = (
-                    f"Token endpoint {token_endpoint} returned non-JSON "
-                    f"(status {response.status_code})"
-                )
-                raise OAuthFlowError(msg) from exc
+            endpoint = validate_oauth_endpoint(
+                token_endpoint,
+                label="Token endpoint",
+                settings=self.security_settings,
+                allowed_schemes=self.allowed_endpoint_schemes,
+            )
+            response = await client.post(endpoint, data=form, timeout=self.timeout_seconds)
+            payload = response_json(
+                response,
+                label="Token endpoint",
+                settings=self.security_settings,
+            )
 
             error = payload.get("error")
             if error == "authorization_pending":
@@ -230,9 +248,9 @@ class DeviceCodeFlow:
                 raise OAuthFlowError(msg)
             if error:
                 # Any other error — surface it.
-                return parse_token_response(payload, issuer=token_endpoint, client_id=client_id)
+                return parse_token_response(payload, issuer=endpoint, client_id=client_id)
             # No error means a successful token response.
-            return parse_token_response(payload, issuer=token_endpoint, client_id=client_id)
+            return parse_token_response(payload, issuer=endpoint, client_id=client_id)
 
         msg = f"Device authorization timed out after {elapsed:.0f}s"
         raise OAuthFlowError(msg)

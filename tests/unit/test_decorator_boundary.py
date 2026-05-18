@@ -54,6 +54,8 @@ async def test_function_tool_returns_structured_output_with_summary() -> None:
 
 
 async def test_function_tool_converts_function_exception_to_error_result() -> None:
+    sentinel = "sk-secret-should-not-leak"
+
     @kaos_tool(
         name="kaos-test-function-error",
         description="Raise from wrapped function",
@@ -61,14 +63,17 @@ async def test_function_tool_converts_function_exception_to_error_result() -> No
         capability=ToolCapability.QUERY,
     )
     async def decorated_tool() -> str:
-        raise RuntimeError("backend unavailable")
+        raise RuntimeError(f"backend unavailable: {sentinel}")
 
     result = await decorated_tool.execute({})
 
     assert result.isError
     assert result.text is not None
     assert "kaos-test-function-error failed during execution" in result.text
+    assert sentinel not in result.text
+    assert sentinel not in result.model_dump_json()
     assert result.meta is not None
     error = result.meta["error"]
     assert error["code"] == "function_tool_execution_failed"
     assert error["details"]["exception_type"] == "RuntimeError"
+    assert "exception" not in error["details"]

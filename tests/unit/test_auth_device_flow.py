@@ -14,6 +14,7 @@ import pytest
 
 from kaos_core.auth import DeviceCodeFlow, OAuthFlowError
 from kaos_core.auth.device_flow import DeviceAuthorization
+from kaos_core.security import KaosSecuritySettings
 
 
 def _silent_display(_: DeviceAuthorization) -> None:
@@ -219,6 +220,84 @@ async def test_device_authorization_error_response_raises() -> None:
             http_client=client, display=_silent_display, poll_sleep=_instant_sleep
         )
         with pytest.raises(OAuthFlowError, match="invalid_client"):
+            await flow.run(
+                client_id="client-abc",
+                scopes=["read"],
+                authorization_endpoint="https://idp.example/authorize",
+                token_endpoint="https://idp.example/token",
+                device_authorization_endpoint="https://idp.example/device_authorization",
+            )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("endpoint", "reason"),
+    [
+        ("https://127.0.0.1/device_authorization", "loopback"),
+        ("https://10.0.0.5/device_authorization", "private_network"),
+        ("https://169.254.169.254/device_authorization", "metadata_service"),
+    ],
+)
+async def test_device_authorization_endpoint_uses_url_safety(
+    endpoint: str,
+    reason: str,
+) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"unexpected HTTP call to {request.url}")
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        flow = DeviceCodeFlow(
+            http_client=client, display=_silent_display, poll_sleep=_instant_sleep
+        )
+        with pytest.raises(OAuthFlowError, match=reason):
+            await flow.run(
+                client_id="client-abc",
+                scopes=["read"],
+                authorization_endpoint="https://idp.example/authorize",
+                token_endpoint="https://idp.example/token",
+                device_authorization_endpoint=endpoint,
+            )
+
+
+@pytest.mark.asyncio
+async def test_device_token_endpoint_uses_url_safety_after_authorization() -> None:
+    handler = _make_handler()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        flow = DeviceCodeFlow(
+            http_client=client, display=_silent_display, poll_sleep=_instant_sleep
+        )
+        with pytest.raises(OAuthFlowError, match="private_network"):
+            await flow.run(
+                client_id="client-abc",
+                scopes=["read"],
+                authorization_endpoint="https://idp.example/authorize",
+                token_endpoint="https://10.0.0.5/token",
+                device_authorization_endpoint="https://idp.example/device_authorization",
+            )
+
+
+@pytest.mark.asyncio
+async def test_device_authorization_response_uses_size_cap() -> None:
+    settings = KaosSecuritySettings(response_max_bytes=32)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "device_code": "D" * 64,
+                "user_code": "ABCD-EFGH",
+                "verification_uri": "https://idp.example/device",
+            },
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        flow = DeviceCodeFlow(
+            http_client=client,
+            display=_silent_display,
+            poll_sleep=_instant_sleep,
+            security_settings=settings,
+        )
+        with pytest.raises(OAuthFlowError, match="response size cap"):
             await flow.run(
                 client_id="client-abc",
                 scopes=["read"],

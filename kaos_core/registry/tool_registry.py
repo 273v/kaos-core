@@ -74,7 +74,12 @@ class ToolRegistry:
     ) -> list[str]:
         matches: list[str] = []
         for tool in self._tools.values():
-            input_types = {parameter.type for parameter in tool.metadata.input_schema}
+            input_types: set[str] = set()
+            for parameter in tool.metadata.input_schema:
+                if isinstance(parameter.type, list):
+                    input_types.update(parameter.type)
+                else:
+                    input_types.add(parameter.type)
             if input_type and input_type not in input_types:
                 continue
             if (

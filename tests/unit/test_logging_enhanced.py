@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from kaos_core.base.context import KaosContext
 from kaos_core.logging import get_logger, setup_kaos_logging
 
 
@@ -53,3 +54,41 @@ class TestLoggerHierarchy:
         while parent and parent.name != "kaos":
             parent = parent.parent
         assert parent is root
+
+
+def test_context_logging_uses_current_context_ids() -> None:
+    records: list[logging.LogRecord] = []
+
+    class CaptureHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record)
+
+    logger = logging.getLogger("kaos.context")
+    old_handlers = list(logger.handlers)
+    old_filters = list(logger.filters)
+    old_level = logger.level
+    old_propagate = logger.propagate
+    handler = CaptureHandler()
+    logger.handlers = [handler]
+    logger.filters.clear()
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+    try:
+        first = KaosContext(session_id="session-a", trace_id="trace-a")
+        second = KaosContext(session_id="session-b", trace_id="trace-b")
+
+        first.info("from first")
+        second.info("from second")
+    finally:
+        logger.handlers = old_handlers
+        logger.filters.clear()
+        logger.filters.extend(old_filters)
+        logger.setLevel(old_level)
+        logger.propagate = old_propagate
+
+    assert [
+        (r.__dict__["session_id"], r.__dict__["trace_id"], r.getMessage()) for r in records
+    ] == [
+        ("session-a", "trace-a", "from first"),
+        ("session-b", "trace-b", "from second"),
+    ]

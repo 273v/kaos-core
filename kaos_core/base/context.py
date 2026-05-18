@@ -5,7 +5,7 @@ from typing import Any, TypeVar
 from uuid import uuid4
 
 from kaos_core.exceptions import RegistryError
-from kaos_core.logging import ContextFilter, get_logger
+from kaos_core.logging import get_logger
 from kaos_core.protocol.capabilities import ClientCapabilities
 from kaos_core.protocol.initialize import InitializeRequest, InitializeResult
 from kaos_core.protocol.roots import Root
@@ -61,7 +61,6 @@ class KaosContext:
         self.default_vfs_namespace = _normalize_default_namespace(default_vfs_namespace)
         self._progress_callback: ProgressCallback | None = None
         self._logger = get_logger("kaos.context")
-        self._logger.addFilter(ContextFilter(session_id=session_id, trace_id=trace_id))
 
     @classmethod
     def create(cls, session_id: str | None = None, **kwargs: Any) -> KaosContext:
@@ -118,13 +117,19 @@ class KaosContext:
         return getattr(self.client_capabilities, "roots", None) is not None
 
     def info(self, message: str, **kwargs: Any) -> None:
-        self._logger.info(message, extra=kwargs)
+        self._logger.info(message, extra=self._log_extra(kwargs))
 
     def warning(self, message: str, **kwargs: Any) -> None:
-        self._logger.warning(message, extra=kwargs)
+        self._logger.warning(message, extra=self._log_extra(kwargs))
 
     def error(self, message: str, **kwargs: Any) -> None:
-        self._logger.error(message, extra=kwargs)
+        self._logger.error(message, extra=self._log_extra(kwargs))
+
+    def _log_extra(self, extra: dict[str, Any]) -> dict[str, Any]:
+        merged = dict(extra)
+        merged["session_id"] = self.session_id
+        merged["trace_id"] = self.trace_id or "-"
+        return merged
 
     async def report_progress(
         self,

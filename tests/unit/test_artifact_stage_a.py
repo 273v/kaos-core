@@ -234,6 +234,31 @@ def test_to_tool_result_settings_override_promotes_to_summary_tier() -> None:
     assert any(getattr(item, "uri", None) == tiny.body_uri for item in result.content)
 
 
+def test_to_tool_result_omits_summary_at_summary_threshold() -> None:
+    manifest = ArtifactManifest(
+        artifact_id="large",
+        session_id="s",
+        context_id="s",
+        name="large.txt",
+        uri="kaos://artifacts/large",
+        role=ArtifactRole.BODY,
+        mime_type="text/plain",
+        size=100,
+        path="p",
+    )
+    settings = KaosCoreArtifactSettings(inline_threshold=10, summary_threshold=100)
+
+    result = manifest.to_tool_result(
+        summary="summary should be omitted",
+        inline_body="full body should be omitted",
+        settings=settings,
+    )
+
+    assert len(result.content) == 1
+    assert result.content[0].type == "resource_link"
+    assert result.text is None
+
+
 def test_settings_env_override(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("KAOS_CORE_ARTIFACT_INLINE_THRESHOLD", "32768")
     monkeypatch.setenv("KAOS_CORE_ARTIFACT_SUMMARY_THRESHOLD", "524288")

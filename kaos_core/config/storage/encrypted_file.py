@@ -114,11 +114,11 @@ class EncryptedFileStorage:
         except ImportError:
             return False
         try:
-            self._provider()
+            passphrase = self._provider()
         except Exception:
             logger.debug("encrypted-file passphrase provider raised", exc_info=True)
             return False
-        return self._provider() is not None
+        return passphrase is not None
 
     def get(self, module: str, service: str, key: str = "default") -> str | None:
         data = self._load_data()

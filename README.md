@@ -74,9 +74,10 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-Inputs are validated against the JSON Schema generated from your type
-hints — `tool.execute({"value": "not-int"})` raises `ValidationError`
-before reaching the function body.
+Inputs are checked against the JSON Schema generated from your type hints for
+required fields, unexpected fields, primitive types, literal enum values, and
+list item types — `tool.execute({"value": "not-int"})` raises
+`ValidationError` before reaching the function body.
 
 ## Concepts
 
@@ -84,11 +85,11 @@ The package is built around six small, composable primitives.
 
 | Concept | What it is |
 |---|---|
-| **`KaosRuntime`** | Dependency-injection container. Tools, resources, prompts, and namespaces live here. `KaosRuntime.default()` is fine for scripts and tests; library code should accept a `KaosRuntime` parameter. |
-| **`KaosTool`** | Abstract base for tools. Subclass it directly or use the `@kaos_tool` decorator. Inputs are type-validated against the JSON Schema derived from your function signature. |
+| **`KaosRuntime`** | Dependency-injection container. Tools, resources, prompts, and namespaces live here. `KaosRuntime.default()` is fine for scripts and tests; library code should accept a `KaosRuntime` parameter. Tests that set a default should reset it with the token returned by `KaosRuntime.set_default()`. |
+| **`KaosTool`** | Abstract base for tools. Subclass it directly or use the `@kaos_tool` decorator. Inputs are checked against the JSON Schema derived from your function signature. |
 | **`KaosContext`** | Per-execution context with `session_id` / `trace_id` for structured logging, plus access to runtime configuration and the artifact store. |
-| **`ModuleSettings`** | Typed-settings base class with six-level resolution: explicit overrides → `KaosContext._config` → `KAOS_<MOD>_*` env vars → legacy env vars → `.env` → field defaults. API keys use `pydantic.SecretStr` so they are redacted in logs. |
-| **Artifacts** | Three-tier policy for results of varying size. `INLINE_THRESHOLD = 16 KB` (inline acceptable), `SUMMARY_THRESHOLD = 256 KB` (summary inline + resource link), larger values move by handle (`kaos://artifacts/...`). Use `ArtifactManifest.to_tool_result()` to auto-select the tier. |
+| **`ModuleSettings`** | Typed-settings base class with six-level resolution: explicit overrides → `KaosContext._config` → `KAOS_<MOD>_*` env vars → legacy env aliases declared by `legacy_env_vars` → `.env` → field defaults. API keys use `pydantic.SecretStr` so they are redacted in logs. |
+| **Artifacts** | Three-tier policy for results of varying size. Values below `INLINE_THRESHOLD = 16 KB` can inline the body, values below `SUMMARY_THRESHOLD = 256 KB` return summary + resource link, and values at or above `SUMMARY_THRESHOLD` return a handle only (`kaos://artifacts/...`). Use `ArtifactManifest.to_tool_result()` to auto-select the tier. |
 | **Virtual filesystem** | Flat S3-style namespace (`VirtualFileSystem`) with memory and disk backends. Range reads, pagination, lazy loading. Directories are emergent; `mkdir` is a no-op. |
 
 ## CLI
@@ -101,7 +102,7 @@ kaos-core tools list                              # registered tools
 kaos-core tools search "pdf" --category document  # search by query + facet
 kaos-core artifacts list --session my-session     # stored artifacts
 kaos-core config show                             # runtime settings (with secrets redacted)
-kaos-core vfs ls /artifacts/                      # VFS contents
+kaos-core vfs ls /artifacts/ --cursor 100         # paginated VFS contents
 ```
 
 ## Compatibility & status
@@ -110,9 +111,9 @@ kaos-core vfs ls /artifacts/                      # VFS contents
 |---|---|
 | **Python** | 3.13, 3.14 (informational matrix entries for 3.14t free-threaded and 3.15-dev) |
 | **OS** | Linux, macOS, Windows (pure-Python wheel; no native code) |
-| **Maturity** | Alpha. The public API is documented in `kaos_core.__all__` (105 symbols). |
+| **Maturity** | Alpha. The public API is documented in `kaos_core.__all__`. |
 | **Stability policy** | Pre-1.0: minor bumps may change behaviour. Every change is documented in [`CHANGELOG.md`](CHANGELOG.md). The MCP tool surface and the `KAOS_<MOD>_*` environment-variable namespace are public API and follow the same policy. |
-| **Test coverage** | 272 tests, 89% line coverage on 2,939 statements. |
+| **Test coverage** | Tracked by CI with `pytest` and `pytest-cov`; run the local gate below before opening a PR. |
 | **Type checker** | Validated with [`ty`](https://docs.astral.sh/ty/), Astral's Python type checker. |
 
 ## Companion packages
@@ -165,7 +166,7 @@ Manual QA commands (the same set CI runs):
 uv run ruff format --check kaos_core tests
 uv run ruff check kaos_core tests
 uv run ty check kaos_core tests
-uv run pytest -m "not live and not network and not slow"
+uv run pytest -m "not live and not network and not slow" --no-cov
 ```
 
 ## Build from source

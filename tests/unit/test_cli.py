@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from io import StringIO
 from unittest.mock import patch
@@ -9,6 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from kaos_core.cli import main
+from kaos_core.registry import KaosRuntime
 
 # ---------------------------------------------------------------------------
 # tools list
@@ -200,6 +202,19 @@ class TestVfsLs:
             main(["vfs", "ls", "--json"])
         data = json.loads(stdout.getvalue())
         assert data["path"] == "/"
+
+    def test_vfs_ls_accepts_cursor(self, runtime: KaosRuntime) -> None:
+        for index in range(101):
+            asyncio.run(runtime.vfs.write(f"item-{index:03}.txt", b"x"))
+
+        stdout = StringIO()
+        with patch("sys.stdout", stdout):
+            main(["vfs", "ls", "--cursor", "100", "--json"])
+        data = json.loads(stdout.getvalue())
+        assert data["command"] == "vfs ls"
+        assert data["cursor"] == "100"
+        assert data["items"] == ["item-100.txt"]
+        assert data["next_cursor"] is None
 
 
 # ---------------------------------------------------------------------------

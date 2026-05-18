@@ -127,13 +127,14 @@ class ArtifactManifest(KaosModel):
 
         resolved = settings or _DEFAULT_ARTIFACT_SETTINGS
         inline_threshold = resolved.inline_threshold
+        summary_threshold = resolved.summary_threshold
 
         link = self.to_resource_link()
         content: list[TextContent | ResourceLinkContent] = []
 
         if self.size < inline_threshold and inline_body is not None:
             content.append(TextContent(text=inline_body))
-        elif summary is not None:
+        elif self.size < summary_threshold and summary is not None:
             content.append(TextContent(text=summary))
 
         # Always include the resource link for non-tiny artifacts

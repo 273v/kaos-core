@@ -9,7 +9,7 @@ from kaos_core.types.content import KaosModel
 
 class ParameterSchema(KaosModel):
     name: str
-    type: str
+    type: str | list[str]
     description: str | None = None
     required: bool = True
     default: Any = None

@@ -58,6 +58,24 @@ def test_is_available_with_passphrase(tmp_path: Path) -> None:
     assert s.is_available() is True
 
 
+def test_is_available_calls_provider_once(tmp_path: Path) -> None:
+    calls = 0
+
+    def provider() -> str:
+        nonlocal calls
+        calls += 1
+        return "pp"
+
+    s = EncryptedFileStorage(
+        path=tmp_path / "creds.enc",
+        passphrase_provider=provider,
+        kdf_params=_TEST_KDF,
+    )
+
+    assert s.is_available() is True
+    assert calls == 1
+
+
 def test_is_unavailable_without_passphrase(tmp_path: Path) -> None:
     s = EncryptedFileStorage(
         path=tmp_path / "creds.enc",

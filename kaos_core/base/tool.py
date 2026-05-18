@@ -69,30 +69,63 @@ class KaosTool(ABC):
             raise ValidationError("Missing required inputs", fields=missing)
 
         properties = schema.get("properties", {})
+        if schema.get("additionalProperties") is False:
+            unexpected = sorted(set(inputs).difference(properties))
+            if unexpected:
+                raise ValidationError("Unexpected inputs", fields=unexpected)
+
         type_errors: list[str] = []
         for name, value in inputs.items():
             prop = properties.get(name)
             if not isinstance(prop, dict):
                 continue
             declared = prop.get("type")
-            expected = self._JSON_SCHEMA_TYPE_MAP.get(declared) if declared else None
-            if expected is None:
+            expected_types = [declared] if isinstance(declared, str) else declared
+            if not expected_types:
+                continue
+            if any(
+                self._value_matches_schema_type(value, schema_type)
+                for schema_type in expected_types
+            ):
+                enum_values = prop.get("enum")
+                if enum_values is not None and value not in enum_values:
+                    type_errors.append(f"{name}: expected one of {enum_values!r}")
+                item_schema = prop.get("items")
+                if isinstance(item_schema, dict) and isinstance(value, list):
+                    item_type = item_schema.get("type")
+                    item_types = [item_type] if isinstance(item_type, str) else item_type
+                    if item_types:
+                        for index, item in enumerate(value):
+                            if not any(
+                                self._value_matches_schema_type(item, schema_type)
+                                for schema_type in item_types
+                            ):
+                                expected_label = "|".join(item_types)
+                                actual_name = type(item).__name__
+                                type_errors.append(
+                                    f"{name}[{index}]: expected {expected_label}, got {actual_name}"
+                                )
                 continue
             actual_name = type(value).__name__
-            if declared in {"integer", "number"} and isinstance(value, bool):
-                # bool is a subclass of int but is a distinct JSON type;
-                # rejecting it here matches what jsonschema validators do.
-                type_errors.append(f"{name}: expected {declared}, got boolean")
-                continue
-            if declared == "boolean" and not isinstance(value, bool):
-                type_errors.append(f"{name}: expected boolean, got {actual_name}")
-                continue
-            if not isinstance(value, expected):
-                type_errors.append(f"{name}: expected {declared}, got {actual_name}")
+            expected_label = "|".join(expected_types)
+            if expected_label in {"integer", "number"} and isinstance(value, bool):
+                actual_name = "boolean"
+            type_errors.append(f"{name}: expected {expected_label}, got {actual_name}")
         if type_errors:
             raise ValidationError("Inputs failed type validation", fields=type_errors)
 
         return True
+
+    @classmethod
+    def _value_matches_schema_type(cls, value: Any, schema_type: str) -> bool:
+        expected = cls._JSON_SCHEMA_TYPE_MAP.get(schema_type)
+        if expected is None:
+            return True
+        if schema_type in {"integer", "number"} and isinstance(value, bool):
+            return False
+        if schema_type == "boolean":
+            return isinstance(value, bool)
+        return isinstance(value, expected)
 
     async def stream_execute(
         self,

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from contextvars import ContextVar
+from contextvars import ContextVar, Token
 from functools import cached_property
 from typing import Any
 
@@ -103,8 +103,18 @@ class KaosRuntime:
         return runtime
 
     @classmethod
-    def set_default(cls, runtime: KaosRuntime) -> None:
-        _default_runtime.set(runtime)
+    def set_default(cls, runtime: KaosRuntime) -> Token[KaosRuntime | None]:
+        """Set the process-local default runtime and return a reset token.
+
+        This is intended for scripts, CLIs, and tests. Library code should
+        prefer explicit :class:`KaosRuntime` injection.
+        """
+        return _default_runtime.set(runtime)
+
+    @classmethod
+    def reset_default(cls, token: Token[KaosRuntime | None]) -> None:
+        """Restore the default runtime captured before :meth:`set_default`."""
+        _default_runtime.reset(token)
 
     @classmethod
     def test_mode(cls, in_memory: bool = True) -> KaosRuntime:
