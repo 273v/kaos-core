@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import Any, ParamSpec, TypeVar, get_origin, get_type_hints
+from types import UnionType
+from typing import Any, Literal, ParamSpec, TypeVar, Union, get_args, get_origin, get_type_hints
 
 from kaos_core.base.context import KaosContext
 from kaos_core.base.tool import KaosTool
 from kaos_core.exceptions import ValidationError
+from kaos_core.logging import get_logger
 from kaos_core.registry.container import KaosRuntime
 from kaos_core.types.annotations import ToolAnnotations
 from kaos_core.types.enums import ToolCapability, ToolCategory
@@ -16,26 +18,72 @@ from kaos_core.types.results import ErrorInfo, ToolResult
 
 P = ParamSpec("P")
 R = TypeVar("R")
+logger = get_logger(__name__)
 
 
-def _annotation_to_schema(annotation: Any) -> str:
+def _annotation_to_schema(annotation: Any) -> tuple[str | list[str], dict[str, Any]]:
     origin = get_origin(annotation)
+    args = get_args(annotation)
+
+    if origin is Literal:
+        literal_values = list(args)
+        literal_types = {_annotation_to_schema(type(value))[0] for value in literal_values}
+        flattened_types: list[str] = []
+        for type_value in literal_types:
+            if isinstance(type_value, list):
+                flattened_types.extend(type_value)
+            else:
+                flattened_types.append(type_value)
+        unique_types = sorted(set(flattened_types))
+        schema_type: str | list[str] = unique_types[0] if len(unique_types) == 1 else unique_types
+        return schema_type, {"enum": literal_values}
+
+    if origin in {list, tuple}:
+        constraints: dict[str, Any] = {}
+        if args and args[0] is not Any:
+            item_type, item_constraints = _annotation_to_schema(args[0])
+            constraints["items"] = {"type": item_type, **item_constraints}
+        return "array", constraints
+
+    if origin is dict:
+        constraints = {}
+        if len(args) == 2 and args[1] is not Any:
+            value_type, value_constraints = _annotation_to_schema(args[1])
+            constraints["additionalProperties"] = {"type": value_type, **value_constraints}
+        return "object", constraints
+
+    if origin in {Union, UnionType}:
+        schema_types: list[str] = []
+        for arg in args:
+            arg_type, _arg_constraints = _annotation_to_schema(arg)
+            if isinstance(arg_type, list):
+                schema_types.extend(arg_type)
+            else:
+                schema_types.append(arg_type)
+        unique_types = sorted(set(schema_types))
+        return unique_types[0] if len(unique_types) == 1 else unique_types, {}
+
     schema_type = origin or annotation
     if schema_type is str:
-        return "string"
+        return "string", {}
     if schema_type is int:
-        return "integer"
+        return "integer", {}
     if schema_type is float:
-        return "number"
+        return "number", {}
     if schema_type is bool:
-        return "boolean"
+        return "boolean", {}
     if schema_type is dict:
-        return "object"
+        return "object", {}
     if schema_type is list:
-        return "array"
+        return "array", {}
     if schema_type is type(None):
-        return "null"
-    return "string"
+        return "null", {}
+    if hasattr(schema_type, "model_json_schema"):
+        model_schema = schema_type.model_json_schema()
+        schema = dict(model_schema)
+        type_value = schema.pop("type", "object")
+        return type_value, schema
+    return "string", {}
 
 
 def _structured_summary(tool_name: str, output: dict[str, Any]) -> str:
@@ -71,8 +119,11 @@ class FunctionTool(KaosTool):
 
     def validate_inputs(self, inputs: dict[str, Any]) -> bool:
         super().validate_inputs(inputs)
-        unexpected = sorted(set(inputs).difference(self._signature.parameters))
-        if unexpected and not self._include_context:
+        expected = set(self._signature.parameters)
+        if self._include_context:
+            expected.discard("context")
+        unexpected = sorted(set(inputs).difference(expected))
+        if unexpected:
             raise ValidationError("Unexpected inputs", fields=unexpected)
         return True
 
@@ -88,6 +139,11 @@ class FunctionTool(KaosTool):
             if inspect.isawaitable(result):
                 result = await result
         except Exception as exc:
+            logger.warning(
+                "Function tool %s failed during execution (%s)",
+                self.metadata.name,
+                type(exc).__name__,
+            )
             return ToolResult.create_error(
                 ErrorInfo(
                     code="function_tool_execution_failed",
@@ -99,7 +155,6 @@ class FunctionTool(KaosTool):
                     details={
                         "tool_name": self.metadata.name,
                         "exception_type": type(exc).__name__,
-                        "exception": str(exc),
                     },
                 )
             )
@@ -141,21 +196,24 @@ def kaos_tool(
             if include_context and parameter.name == "context":
                 continue
             annotation = type_hints.get(parameter.name, str)
+            schema_type, constraints = _annotation_to_schema(annotation)
             input_schema.append(
                 ParameterSchema(
                     name=parameter.name,
-                    type=_annotation_to_schema(annotation),
+                    type=schema_type,
                     description=None,
                     required=parameter.default is inspect.Signature.empty,
                     default=None
                     if parameter.default is inspect.Signature.empty
                     else parameter.default,
+                    constraints=constraints,
                 )
             )
         output_annotation = type_hints.get("return")
         output_schema = None
         if output_annotation is not None and output_annotation is not ToolResult:
-            output_schema = {"type": _annotation_to_schema(output_annotation)}
+            schema_type, constraints = _annotation_to_schema(output_annotation)
+            output_schema = {"type": schema_type, **constraints}
         metadata = ToolMetadata(
             name=name or func_name.replace("_", "-"),
             display_name=display_name,

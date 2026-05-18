@@ -5,9 +5,10 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from kaos_core.exceptions import TaskError
+from kaos_core.logging import get_logger
 from kaos_core.mcp_types.settings import AgentSettings
 from kaos_core.types.enums import TaskState
-from kaos_core.types.results import ToolResult
+from kaos_core.types.results import ErrorInfo, ToolResult
 from kaos_core.types.tasks import (
     CreateTaskResult,
     TaskDefinition,
@@ -17,6 +18,10 @@ from kaos_core.types.tasks import (
 )
 
 TaskExecutor = Callable[[TaskDefinition], Awaitable[ToolResult]]
+logger = get_logger(__name__)
+_TASK_EXECUTION_ERROR = (
+    "Task failed during execution. Check the task inputs and runtime state, then retry."
+)
 
 
 def _iso_now() -> str:
@@ -71,11 +76,25 @@ class TaskManager:
             self._set_status(definition.task_id, TaskState.CANCELLED, message="cancelled")
             raise
         except Exception as exc:
+            logger.warning(
+                "Task %s failed during execution (%s)",
+                definition.task_id,
+                type(exc).__name__,
+            )
             self._set_status(
                 definition.task_id,
                 TaskState.FAILED,
-                message=str(exc),
-                result=ToolResult.create_error(str(exc)),
+                message=_TASK_EXECUTION_ERROR,
+                result=ToolResult.create_error(
+                    ErrorInfo(
+                        code="task_execution_failed",
+                        message=_TASK_EXECUTION_ERROR,
+                        details={
+                            "task_id": definition.task_id,
+                            "exception_type": type(exc).__name__,
+                        },
+                    )
+                ),
             )
         else:
             self._set_status(definition.task_id, TaskState.COMPLETED, result=result)

@@ -337,14 +337,14 @@ async def test_to_tool_result_medium_artifact(tmp_path: Path) -> None:
 
 
 async def test_to_tool_result_large_artifact_link_only(tmp_path: Path) -> None:
-    """Large artifacts (>256KB) get link only (no summary unless provided)."""
+    """Large artifacts (>256KB) get link only even when a summary is provided."""
     from kaos_core.artifacts.models import SUMMARY_THRESHOLD
 
     runtime = _make_runtime(tmp_path)
     content = "x" * (SUMMARY_THRESHOLD + 100)
     m = await _write_and_create(runtime, filename="large.txt", content=content)
 
-    result = m.to_tool_result()
+    result = m.to_tool_result(summary="A large document")
     assert len(result.content) == 1
     assert result.content[0].type == "resource_link"
 

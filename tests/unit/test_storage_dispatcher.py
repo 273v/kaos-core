@@ -174,8 +174,35 @@ class TestAutoMigrate:
         keyring.set("kaos-llm", "openai", "default", "v1")
         store = HardenedCredentialStore(backends=[keyring, plaintext])
         assert store.get("kaos-llm", "openai", "default") == "v1"
+        assert store.get("kaos-llm", "openai", "default") == "v1"
+        assert keyring.get("kaos-llm", "openai", "default") == "v1"
         # plaintext should remain untouched.
         assert plaintext.get("kaos-llm", "openai", "default") is None
+
+    def test_read_does_not_delete_when_no_stronger_tier_available(self) -> None:
+        keyring = _FakeStorage(StorageTier.KEYRING, available=False)
+        plaintext = _FakeStorage(StorageTier.PLAINTEXT)
+        plaintext.set("kaos-llm", "openai", "default", "v1")
+        store = HardenedCredentialStore(backends=[keyring, plaintext])
+
+        assert store.get("kaos-llm", "openai", "default") == "v1"
+        assert store.get("kaos-llm", "openai", "default") == "v1"
+        assert plaintext.get("kaos-llm", "openai", "default") == "v1"
+
+    def test_failed_auto_migration_keeps_source_copy(self) -> None:
+        class _WriteFailStorage(_FakeStorage):
+            def set(self, *_args: object, **_kwargs: object) -> None:
+                msg = "write failed"
+                raise RuntimeError(msg)
+
+        keyring = _WriteFailStorage(StorageTier.KEYRING)
+        plaintext = _FakeStorage(StorageTier.PLAINTEXT)
+        plaintext.set("kaos-llm", "openai", "default", "v1")
+        store = HardenedCredentialStore(backends=[keyring, plaintext])
+
+        assert store.get("kaos-llm", "openai", "default") == "v1"
+        assert keyring.get("kaos-llm", "openai", "default") is None
+        assert plaintext.get("kaos-llm", "openai", "default") == "v1"
 
     def test_migration_skips_capped_tier(self) -> None:
         keyring = _FakeStorage(StorageTier.KEYRING)
@@ -289,6 +316,7 @@ class TestRealPlaintextIntegration:
         store = HardenedCredentialStore(backends=[PlaintextStorage(path=tmp_path / "creds.json")])
         assert store.active_tier is StorageTier.PLAINTEXT
         store.set("kaos-llm", "openai", "default", "sk-real")
+        assert store.get("kaos-llm", "openai", "default") == "sk-real"
         assert store.get("kaos-llm", "openai", "default") == "sk-real"
         store.delete("kaos-llm", "openai", "default")
         assert store.get("kaos-llm", "openai", "default") is None

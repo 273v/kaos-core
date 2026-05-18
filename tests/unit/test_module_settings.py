@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from pathlib import Path
+from typing import ClassVar, Literal
 
 import pytest
 from pydantic import SecretStr
@@ -15,6 +16,11 @@ from kaos_core.config.module_settings import ModuleSettings
 class SampleSettings(ModuleSettings):
     """Test settings subclass."""
 
+    legacy_env_vars: ClassVar[dict[str, tuple[str, ...]]] = {
+        "timeout": ("SAMPLE_TIMEOUT",),
+        "api_key": ("SAMPLE_API_TOKEN",),
+    }
+
     timeout: float = 30.0
     retries: int = 3
     api_key: SecretStr | None = None
@@ -22,6 +28,7 @@ class SampleSettings(ModuleSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="KAOS_SAMPLE_",
+        env_file=".env",
         extra="ignore",
     )
 
@@ -57,6 +64,36 @@ class TestModuleSettingsFromEnv:
         assert s.api_key.get_secret_value() == "sk-secret-123"
         # SecretStr masks in repr
         assert "sk-secret-123" not in repr(s.api_key)
+
+    def test_legacy_env_alias_used_below_canonical_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("SAMPLE_TIMEOUT", "5.0")
+        s = SampleSettings()
+        assert s.timeout == 5.0
+
+        monkeypatch.setenv("KAOS_SAMPLE_TIMEOUT", "2.0")
+        s = SampleSettings()
+        assert s.timeout == 2.0
+
+    def test_legacy_env_alias_beats_dotenv(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("KAOS_SAMPLE_TIMEOUT=20.0\n", encoding="utf-8")
+        monkeypatch.setenv("SAMPLE_TIMEOUT", "5.0")
+
+        s = SampleSettings()
+
+        assert s.timeout == 5.0
+
+    def test_dotenv_beats_defaults(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / ".env").write_text("KAOS_SAMPLE_RETRIES=8\n", encoding="utf-8")
+
+        s = SampleSettings()
+
+        assert s.retries == 8
 
 
 class TestModuleSettingsFromContext:

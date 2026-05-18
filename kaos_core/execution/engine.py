@@ -68,12 +68,20 @@ class ExecutionEngine:
                             await asyncio.sleep(self.config.retry_delay)
                         continue
                 except Exception as exc:
+                    self._logger.warning(
+                        "Tool %s raised before returning a result (%s)",
+                        tool_name,
+                        type(exc).__name__,
+                    )
                     if attempt >= self.config.max_retries:
                         duration = time.perf_counter() - start
                         return ExecutionResult(
                             execution_id=execution_id or str(uuid4()),
                             state=ExecutionState.FAILED,
-                            error=str(exc),
+                            error=(
+                                f"Tool {tool_name} failed before returning a result. "
+                                "Check the inputs and runtime state, then retry."
+                            ),
                             duration=duration,
                             retries=attempt,
                         )
@@ -104,6 +112,7 @@ class ExecutionEngine:
         if tool is None:
             raise ExecutionError("Tool not found", tool_name=tool_name)
         call_context = context or KaosContext.create(runtime=self.runtime)
+        tool.validate_inputs(inputs)
         if self.config.timeout is None:
             return await tool.execute(inputs, context=call_context)
         return await asyncio.wait_for(

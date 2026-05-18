@@ -315,6 +315,12 @@ class VFSListTool(KaosTool):
                     required=False,
                     default=50,
                 ),
+                ParameterSchema(
+                    name="cursor",
+                    type="string",
+                    description="Pagination cursor returned by a previous list call.",
+                    required=False,
+                ),
             ],
         )
 
@@ -326,6 +332,7 @@ class VFSListTool(KaosTool):
 
         path = inputs.get("path", "")
         limit = inputs.get("limit", 50)
+        cursor = inputs.get("cursor")
 
         # When the caller asked for the root and the context has a
         # default VFS namespace declared (e.g. SPA backend sets "files/"),
@@ -345,7 +352,10 @@ class VFSListTool(KaosTool):
             # scope — an isolation bug that hides session writes
             # behind a permissive default view.
             page = await context.runtime.vfs.list_page(
-                effective_path, limit=limit, context_id=context.session_id
+                effective_path,
+                limit=limit,
+                cursor=cursor,
+                context_id=context.session_id,
             )
         except Exception as exc:
             return ToolResult.create_error(
@@ -359,6 +369,7 @@ class VFSListTool(KaosTool):
             "items": page.items,
             "count": len(page.items),
             "has_more": has_more,
+            "cursor": cursor,
         }
         if has_more:
             output["next_cursor"] = page.next_cursor

@@ -24,6 +24,7 @@ import httpx
 import pytest
 
 from kaos_core.auth import OAuthFlowError, PKCELoopbackFlow
+from kaos_core.security import KaosSecuritySettings
 
 
 @pytest.mark.asyncio
@@ -229,3 +230,50 @@ async def test_authorization_url_includes_pkce_params() -> None:
     assert len(params["state"]) >= 16
     assert params["redirect_uri"].startswith("http://127.0.0.1:")
     assert params["redirect_uri"].endswith("/callback")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("endpoint", "reason"),
+    [
+        ("https://127.0.0.1/authorize", "loopback"),
+        ("https://10.0.0.5/authorize", "private_network"),
+        ("https://169.254.169.254/authorize", "metadata_service"),
+    ],
+)
+async def test_authorization_endpoint_uses_url_safety(endpoint: str, reason: str) -> None:
+    flow = PKCELoopbackFlow(open_browser=lambda _url: True, timeout_seconds=0.1)
+
+    with pytest.raises(OAuthFlowError, match=reason):
+        await flow.run(
+            client_id="client-abc",
+            scopes=["read"],
+            authorization_endpoint=endpoint,
+            token_endpoint="https://idp.example/token",
+        )
+
+
+@pytest.mark.asyncio
+async def test_token_response_uses_size_cap() -> None:
+    settings = KaosSecuritySettings(response_max_bytes=32)
+
+    def token_handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"access_token": "a" * 64, "token_type": "Bearer"},
+        )
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(token_handler)) as client:
+        flow = PKCELoopbackFlow(
+            http_client=client,
+            security_settings=settings,
+            timeout_seconds=1.0,
+        )
+        with pytest.raises(OAuthFlowError, match="response size cap"):
+            await flow._exchange_code(
+                code="auth-code",
+                verifier="verifier",
+                redirect_uri="http://127.0.0.1:49152/callback",
+                client_id="client-abc",
+                token_endpoint="https://idp.example/token",
+            )

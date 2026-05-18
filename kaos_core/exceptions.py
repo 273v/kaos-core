@@ -10,9 +10,7 @@ class KaosCoreError(Exception):
         self.details = details
 
     def __str__(self) -> str:
-        if not self.details:
-            return self.message
-        return f"{self.message} ({self.details})"
+        return self.message
 
 
 class RegistryError(KaosCoreError):

@@ -26,7 +26,7 @@ class KaosSecuritySettings(BaseSettings):
 
     Each field is overridable via the ``KAOS_SECURITY_<FIELD>`` environment
     variable (e.g. ``KAOS_SECURITY_BLOCK_PRIVATE_NETWORKS=0``,
-    ``KAOS_SECURITY_ALLOWED_HOSTS=internal.example.com,10.0.0.0/24``,
+    ``KAOS_SECURITY_ALLOWED_HOSTS=["internal.example.com","10.0.0.0/24"]``,
     ``KAOS_SECURITY_RESPONSE_MAX_BYTES=500000000``).
 
     Helpers in :mod:`kaos_core.security.url` and

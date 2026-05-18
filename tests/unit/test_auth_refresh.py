@@ -25,6 +25,7 @@ from pydantic import SecretStr
 
 from kaos_core.auth import OAuthFlowError, refresh_token
 from kaos_core.config import OAuthToken
+from kaos_core.security import KaosSecuritySettings
 
 
 def _mock_client(handler: Callable[[httpx.Request], httpx.Response]) -> httpx.AsyncClient:
@@ -230,3 +231,36 @@ async def test_response_with_explicit_error_field_raises() -> None:
     async with _mock_client(handler) as client:
         with pytest.raises(OAuthFlowError, match="server_error"):
             await refresh_token(_seed_token(), client=client)
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("issuer", "reason"),
+    [
+        ("https://127.0.0.1/oauth/token", "loopback"),
+        ("https://10.0.0.5/oauth/token", "private_network"),
+        ("https://169.254.169.254/oauth/token", "metadata_service"),
+    ],
+)
+async def test_refresh_token_endpoint_uses_url_safety(issuer: str, reason: str) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise AssertionError(f"unexpected HTTP call to {request.url}")
+
+    async with _mock_client(handler) as client:
+        with pytest.raises(OAuthFlowError, match=reason):
+            await refresh_token(_seed_token(issuer=issuer), client=client)
+
+
+@pytest.mark.asyncio
+async def test_refresh_response_uses_size_cap() -> None:
+    settings = KaosSecuritySettings(response_max_bytes=32)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={"access_token": "a" * 64, "token_type": "Bearer"},
+        )
+
+    async with _mock_client(handler) as client:
+        with pytest.raises(OAuthFlowError, match="response size cap"):
+            await refresh_token(_seed_token(), client=client, security_settings=settings)

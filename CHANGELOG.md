@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `ModuleSettings.legacy_env_vars` for opt-in legacy environment-variable
+  aliases resolved after canonical `KAOS_<MOD>_*` env vars and before `.env`.
+- `KaosRuntime.reset_default(token)` and a reset token return from
+  `KaosRuntime.set_default(...)` so tests and scripts can restore the prior
+  default runtime.
+- `cursor` input for the `kaos-core-vfs-list` MCP tool and `--cursor` for
+  `kaos-core vfs ls`.
+
+### Changed
+
+- Decorated tool schemas now represent common typing shapes more accurately,
+  including `Literal[...]`, `list[T]`, `dict[str, T]`, `T | None`, and
+  Pydantic model annotations.
+- User-facing `KaosCoreError.__str__()` now returns the public message only;
+  structured details remain available on `.details`.
+- OAuth device, PKCE, and refresh-token HTTP calls now validate endpoint URLs
+  with the shared SSRF guard, default endpoint schemes to HTTPS-only, and cap
+  JSON response bodies before parsing.
+- `ArtifactManifest.to_tool_result()` now honors `summary_threshold` by
+  returning a resource link only for artifacts at or above that threshold.
+
+### Fixed
+
+- `HardenedCredentialStore.get()` no longer deletes the source secret unless
+  an upward migration actually writes a stronger tier.
+- Function-tool, execution-engine, and task-manager failure results no longer
+  include raw exception strings that may contain secrets or internal details.
+- `KaosContext` logging now injects `session_id` and `trace_id` per log call
+  instead of attaching context-specific filters to the shared logger.
+- `EncryptedFileStorage.is_available()` now calls its passphrase provider once
+  per availability probe.
+- The pytest runtime fixture now resets the default runtime after each test.
+- README, path resolver, security-settings, and pre-commit documentation were
+  refreshed to match current behavior and tooling pins.
+
 ## [0.1.0a10] — 2026-05-17
 
 ### Changed — BREAKING

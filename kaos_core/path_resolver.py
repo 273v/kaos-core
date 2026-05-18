@@ -10,12 +10,15 @@ hallucinating answers from zero successful reads (see the
 ``vfs-blind-tools-audit-and-fix-plan`` in ``kaos-modules/docs/plans``
 for the production post-mortem).
 
-The helper resolves four input shapes that an agent might pass:
+The helper resolves these input shapes that an agent might pass:
 
 1. ``kaos://artifacts/<uuid>``        — artifact-store lookup.
 2. ``kaos://<vfs-scheme>/<path>``     — VFS read scoped to ``context.session_id``.
-3. relative path that exists in VFS   — VFS read.
-4. absolute filesystem path           — direct disk read (CLI / tests / trusted-source flow).
+3. ``vfs://<path>``                   — explicit VFS read with no default namespace.
+4. ``file:///abs/path``               — direct disk read (CLI / tests / trusted-source flow).
+5. bare relative name                 — VFS read inside ``context.default_vfs_namespace``.
+
+Raw absolute filesystem paths without the ``file://`` scheme are rejected.
 
 Returns a :class:`ResolvedInput` async-context-manager. When the input
 was a VFS or artifact reference, the bytes are streamed to a temporary
@@ -32,7 +35,7 @@ pdfplumber, etc.) need no rewriting:
     ) as resolved:
         doc = parse_docx(resolved.path)  # resolved.path is a real pathlib.Path
 
-When the input was already an absolute filesystem path the temp-file
+When the input was an explicit ``file://`` absolute filesystem URI the temp-file
 copy is skipped and ``resolved.path`` points at the original file.
 Cleanup runs unconditionally on context exit (including on
 exceptions); the original filesystem file is never deleted.
@@ -184,12 +187,14 @@ async def resolve_input_path(
     3. Other relative path — first checked against the VFS scoped to
        the current session. If found, extracted to temp. If not, falls
        through to (4).
-    4. Absolute filesystem path — checked with ``Path(p).exists()`` and
+    4. ``file:///abs/path`` — checked with ``Path(p).exists()`` and
        returned as-is (no copy). This is the CLI / test / trusted-
-       fixture path; agents passing absolute paths in untrusted
-       deployments should be guarded at the policy layer (this helper
-       does not block them — it preserves backward compatibility for
-       CLI callers that already passed real paths).
+       fixture path.
+    5. Raw absolute filesystem path without a scheme — rejected with an
+       actionable hint to use ``file://`` for trusted local files or a VFS
+       relative name for session files.
+    6. Bare relative name — resolved through the VFS after prepending
+       ``context.default_vfs_namespace`` when one is set.
 
     Parameters
     ----------

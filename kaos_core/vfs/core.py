@@ -176,13 +176,13 @@ class VirtualFileSystem:
 
             try:
                 metadata = await self.stat(path, context_id=context_id)
-            except Exception as exc:
+            except Exception:
                 errors += 1
                 entries.append(
                     VFSWalkEntry(
                         path=path,
                         metadata=VFSMetadata(path=path, backend=self.config.default_backend),
-                        error=str(exc),
+                        error=f"VFS metadata lookup failed for {path!r}",
                     )
                 )
                 continue

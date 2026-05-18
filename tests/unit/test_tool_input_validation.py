@@ -9,8 +9,11 @@ tracked for v0.2 via the ``jsonschema`` library.
 
 from __future__ import annotations
 
+from typing import Literal
+
 import pytest
 
+from kaos_core.base.context import KaosContext
 from kaos_core.decorators import kaos_tool
 from kaos_core.exceptions import ValidationError
 from kaos_core.types.enums import ToolCapability, ToolCategory
@@ -58,6 +61,34 @@ async def negate(flag: bool) -> bool:
 )
 async def mixed(n: int, name: str, ratio: float, verbose: bool = False) -> dict:
     return {"n": n, "name": name, "ratio": ratio, "verbose": verbose}
+
+
+@kaos_tool(
+    name="kaos-test-validate-context",
+    description="Inject context while rejecting caller extras",
+    category=ToolCategory.DATA,
+    capability=ToolCapability.TRANSFORM,
+    auto_register=False,
+    include_context=True,
+)
+async def uses_context(value: int, context: KaosContext | None = None) -> str:
+    del context
+    return str(value)
+
+
+@kaos_tool(
+    name="kaos-test-validate-rich-schema",
+    description="Exercise common typing annotations",
+    category=ToolCategory.DATA,
+    capability=ToolCapability.TRANSFORM,
+    auto_register=False,
+)
+async def rich_schema(
+    mode: Literal["fast", "safe"],
+    names: list[str],
+    maybe: str | None = None,
+) -> dict:
+    return {"mode": mode, "names": names, "maybe": maybe}
 
 
 def test_required_field_missing_raises() -> None:
@@ -130,3 +161,27 @@ def test_multiple_type_errors_reported_together() -> None:
     assert any("name:" in field for field in fields)
     assert any("ratio:" in field for field in fields)
     assert any("verbose:" in field for field in fields)
+
+
+def test_include_context_still_rejects_unexpected_inputs() -> None:
+    with pytest.raises(ValidationError) as exc_info:
+        uses_context.validate_inputs({"value": 1, "unexpected": 2})
+    assert exc_info.value.details["fields"] == ["unexpected"]
+
+
+def test_common_typing_annotations_generate_runtime_schema() -> None:
+    schema = rich_schema.metadata.get_input_json_schema()
+    props = schema["properties"]
+
+    assert props["mode"]["enum"] == ["fast", "safe"]
+    assert props["names"]["items"] == {"type": "string"}
+    assert props["maybe"]["type"] == ["null", "string"]
+    assert rich_schema.validate_inputs({"mode": "fast", "names": ["a"], "maybe": None}) is True
+
+    with pytest.raises(ValidationError) as enum_error:
+        rich_schema.validate_inputs({"mode": "slow", "names": ["a"]})
+    assert any("expected one of" in field for field in enum_error.value.details["fields"])
+
+    with pytest.raises(ValidationError) as item_error:
+        rich_schema.validate_inputs({"mode": "fast", "names": [1]})
+    assert item_error.value.details["fields"] == ["names[0]: expected string, got int"]

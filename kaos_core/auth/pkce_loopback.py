@@ -25,6 +25,9 @@ Injection points (all keyword-only, defaults sane for production):
   Useful for tests with ``httpx.MockTransport``.
 - ``port_range`` — narrow the loopback bind range, e.g. for
   enterprise firewall allowlisting.
+- ``security_settings`` — optional outbound URL and response-size
+  policy. OAuth endpoints default to HTTPS-only plus the standard
+  private-network, loopback, metadata-service, and size guards.
 """
 
 from __future__ import annotations
@@ -41,6 +44,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from kaos_core.auth._http_safety import response_json, validate_oauth_endpoint
 from kaos_core.auth._token_response import parse_token_response
 from kaos_core.auth.errors import OAuthFlowError
 from kaos_core.logging import get_logger
@@ -49,6 +53,7 @@ if TYPE_CHECKING:
     import httpx
 
     from kaos_core.config.auth import OAuthToken
+    from kaos_core.security.settings import KaosSecuritySettings
 
 logger = get_logger(__name__)
 
@@ -94,6 +99,13 @@ class PKCELoopbackFlow:
             Tests inject a recording fake.
         http_client: Pre-configured :class:`httpx.AsyncClient`.
             Tests inject one with :class:`httpx.MockTransport`.
+        security_settings: Optional outbound URL and response-size
+            policy. OAuth endpoints default to HTTPS-only plus the
+            standard private-network, loopback, metadata-service, and
+            size guards.
+        allowed_endpoint_schemes: Schemes accepted for OAuth endpoints.
+            Defaults to HTTPS-only; local test IdPs can opt into HTTP
+            explicitly.
     """
 
     port_range: tuple[int, int] = (49152, 65535)
@@ -101,6 +113,8 @@ class PKCELoopbackFlow:
     timeout_seconds: float = 300.0
     open_browser: OpenBrowserCallable = _default_open_browser
     http_client: httpx.AsyncClient | None = None
+    security_settings: KaosSecuritySettings | None = None
+    allowed_endpoint_schemes: tuple[str, ...] = ("https",)
 
     async def run(
         self,
@@ -120,8 +134,15 @@ class PKCELoopbackFlow:
         port = _bind_random_port(self.port_range)
         redirect_uri = f"http://127.0.0.1:{port}{self.callback_path}"
 
-        auth_url = _build_authorization_url(
+        checked_authorization_endpoint = validate_oauth_endpoint(
             authorization_endpoint,
+            label="Authorization endpoint",
+            settings=self.security_settings,
+            allowed_schemes=self.allowed_endpoint_schemes,
+        )
+
+        auth_url = _build_authorization_url(
+            checked_authorization_endpoint,
             client_id=client_id,
             redirect_uri=redirect_uri,
             scopes=scopes,
@@ -191,9 +212,15 @@ class PKCELoopbackFlow:
             "client_id": client_id,
             "code_verifier": verifier,
         }
+        endpoint = validate_oauth_endpoint(
+            token_endpoint,
+            label="Token endpoint",
+            settings=self.security_settings,
+            allowed_schemes=self.allowed_endpoint_schemes,
+        )
 
         async def _post(client: httpx.AsyncClient) -> httpx.Response:
-            return await client.post(token_endpoint, data=form, timeout=self.timeout_seconds)
+            return await client.post(endpoint, data=form, timeout=self.timeout_seconds)
 
         if self.http_client is None:
             async with httpx.AsyncClient() as managed_client:
@@ -201,15 +228,13 @@ class PKCELoopbackFlow:
         else:
             response = await _post(self.http_client)
 
-        try:
-            payload = response.json()
-        except ValueError as exc:
-            msg = (
-                f"Token endpoint {token_endpoint} returned non-JSON (status {response.status_code})"
-            )
-            raise OAuthFlowError(msg) from exc
+        payload = response_json(
+            response,
+            label="Token endpoint",
+            settings=self.security_settings,
+        )
 
-        return parse_token_response(payload, issuer=token_endpoint, client_id=client_id)
+        return parse_token_response(payload, issuer=endpoint, client_id=client_id)
 
 
 # ──────────────── helpers ────────────────

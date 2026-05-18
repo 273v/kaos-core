@@ -266,6 +266,7 @@ class HardenedCredentialStore:
     ) -> None:
         # Promote into stronger available tiers. Best-effort — never
         # raise out of a get().
+        promoted = False
         for backend in self._backends:
             if backend is source:
                 break  # already at-or-stronger-than source
@@ -276,6 +277,7 @@ class HardenedCredentialStore:
             try:
                 if backend.get(module, service, key) is None:
                     backend.set(module, service, key, value)
+                    promoted = True
                     logger.info(
                         "Auto-migrated credential %s/%s/%s upward from tier %s to tier %s",
                         module,
@@ -293,6 +295,8 @@ class HardenedCredentialStore:
                     backend.tier.name,
                     exc_info=True,
                 )
+        if not promoted:
+            return
         # Once promoted, remove from the source so the strongest tier
         # is authoritative.
         try:

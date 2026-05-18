@@ -10,7 +10,7 @@ Usage:
     kaos-core tools search QUERY [--category ...] [--capability ...] [--json]
     kaos-core artifacts list [--session SESSION] [--json]
     kaos-core config show [--json]
-    kaos-core vfs ls [PATH] [--json]
+    kaos-core vfs ls [PATH] [--cursor CURSOR] [--json]
     kaos-core creds list [--module M] [--json]
     kaos-core creds set MODULE SERVICE [KEY]   # value read from stdin
     kaos-core creds delete MODULE SERVICE [KEY]
@@ -233,7 +233,7 @@ async def _cmd_vfs_ls_async(args: argparse.Namespace) -> None:
 
     runtime = KaosRuntime.default()
     prefix = args.path or ""
-    page = await runtime.vfs.list_page(prefix, limit=100)
+    page = await runtime.vfs.list_page(prefix, limit=100, cursor=args.cursor)
 
     if args.json:
         _json_out(
@@ -241,6 +241,7 @@ async def _cmd_vfs_ls_async(args: argparse.Namespace) -> None:
                 "command": "vfs ls",
                 "path": prefix or "/",
                 "total": len(page.items),
+                "cursor": args.cursor,
                 "next_cursor": page.next_cursor,
                 "items": page.items,
             }
@@ -545,6 +546,7 @@ def main(argv: list[str] | None = None) -> None:
 
     p_vfs_ls = vfs_sub.add_parser("ls", help="List VFS contents")
     p_vfs_ls.add_argument("path", nargs="?", default="", help="VFS path prefix (default: root)")
+    p_vfs_ls.add_argument("--cursor", help="Pagination cursor from a previous vfs ls call")
     p_vfs_ls.add_argument("--json", action="store_true", help="Structured JSON output")
 
     # --- creds subcommand (F2.5) ---

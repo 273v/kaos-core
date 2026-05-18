@@ -9,8 +9,10 @@ invalidated server-side after rotation.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING
 
+from kaos_core.auth._http_safety import response_json, validate_oauth_endpoint
 from kaos_core.auth._token_response import parse_token_response
 from kaos_core.auth.errors import OAuthFlowError
 
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     import httpx
 
     from kaos_core.config.auth import OAuthToken
+    from kaos_core.security.settings import KaosSecuritySettings
 
 
 async def refresh_token(
@@ -25,6 +28,8 @@ async def refresh_token(
     *,
     client: httpx.AsyncClient | None = None,
     timeout: float = 30.0,
+    security_settings: KaosSecuritySettings | None = None,
+    allowed_endpoint_schemes: Sequence[str] = ("https",),
 ) -> OAuthToken:
     """Exchange the token's refresh_token for a new :class:`OAuthToken`.
 
@@ -42,6 +47,13 @@ async def refresh_token(
             closed.
         timeout: Per-request timeout in seconds. Default 30s; tune
             down for interactive CLIs, up for slow IdPs.
+        security_settings: Optional outbound URL and response-size
+            policy. Token endpoints default to HTTPS-only plus the
+            standard private-network, loopback, metadata-service, and
+            size guards.
+        allowed_endpoint_schemes: Schemes accepted for the token
+            endpoint. The default is HTTPS-only; tests for local
+            providers can pass ``("http", "https")`` explicitly.
 
     Raises:
         OAuthFlowError: The token doesn't carry the metadata needed
@@ -69,9 +81,15 @@ async def refresh_token(
         "refresh_token": refresh_value,
         "client_id": token.client_id,
     }
+    endpoint = validate_oauth_endpoint(
+        token.issuer,
+        label="Token endpoint",
+        settings=security_settings,
+        allowed_schemes=allowed_endpoint_schemes,
+    )
 
     async def _post(c: httpx.AsyncClient) -> httpx.Response:
-        return await c.post(token.issuer or "", data=form, timeout=timeout)
+        return await c.post(endpoint, data=form, timeout=timeout)
 
     if client is None:
         async with httpx.AsyncClient() as managed_client:
@@ -79,18 +97,11 @@ async def refresh_token(
     else:
         response = await _post(client)
 
-    try:
-        payload = response.json()
-    except ValueError as exc:
-        msg = (
-            f"OAuth refresh response from {token.issuer} is not JSON "
-            f"(status {response.status_code})"
-        )
-        raise OAuthFlowError(msg) from exc
+    payload = response_json(response, label="OAuth refresh response", settings=security_settings)
 
     return parse_token_response(
         payload,
-        issuer=token.issuer,
+        issuer=endpoint,
         client_id=token.client_id,
         fallback_refresh_token=refresh_value,
     )

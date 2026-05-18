@@ -324,6 +324,27 @@ class TestVFSListTool:
         data = result.require_structured()
         assert data["count"] >= 1
 
+    async def test_list_uses_cursor_for_second_page(self, tmp_path: Path) -> None:
+        runtime = _make_runtime(tmp_path)
+        ctx = _make_context(runtime)
+        for index in range(3):
+            await runtime.vfs.write(
+                f"file-{index}.txt",
+                f"item {index}".encode(),
+                context_id=ctx.session_id,
+            )
+
+        tool = VFSListTool()
+        first = await tool.execute({"limit": 2}, context=ctx)
+        first_data = first.require_structured()
+        assert first_data["has_more"] is True
+        assert first_data["next_cursor"] == "2"
+
+        second = await tool.execute({"limit": 2, "cursor": first_data["next_cursor"]}, context=ctx)
+        second_data = second.require_structured()
+        assert second_data["items"] == ["file-2.txt"]
+        assert second_data["has_more"] is False
+
 
 class TestVFSReadTool:
     async def test_read_text_file(self, tmp_path: Path) -> None:

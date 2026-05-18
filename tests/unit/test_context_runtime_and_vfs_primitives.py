@@ -157,19 +157,25 @@ async def test_context_runtime_resource_and_progress_behaviors(runtime: KaosRunt
 
 
 async def test_runtime_defaults_resource_helpers_and_shutdown() -> None:
-    runtime_container._default_runtime.set(None)
-    created = KaosRuntime.default()
-    assert isinstance(created, KaosRuntime)
+    clear_token = runtime_container._default_runtime.set(None)
+    try:
+        created = KaosRuntime.default()
+        assert isinstance(created, KaosRuntime)
 
-    alternate = KaosRuntime()
-    KaosRuntime.set_default(alternate)
-    assert KaosRuntime.default() is alternate
+        alternate = KaosRuntime()
+        default_token = KaosRuntime.set_default(alternate)
+        try:
+            assert KaosRuntime.default() is alternate
 
-    alternate.tools.register_tool(ping)
-    await ping.startup()
-    assert ping.is_initialized is True
-    await alternate.shutdown()
-    assert ping.is_initialized is False
+            alternate.tools.register_tool(ping)
+            await ping.startup()
+            assert ping.is_initialized is True
+            await alternate.shutdown()
+            assert ping.is_initialized is False
+        finally:
+            KaosRuntime.reset_default(default_token)
+    finally:
+        runtime_container._default_runtime.reset(clear_token)
 
     resource = ResourceProbe()
     assert [item async for item in resource.stream_read()] == ["payload"]

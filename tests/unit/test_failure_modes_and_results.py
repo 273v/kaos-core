@@ -12,6 +12,7 @@ from kaos_core import (
     ExecutionError,
     KaosResource,
     KaosRuntime,
+    KaosTool,
     RegistryError,
     ResourceMetadata,
     ResourceRegistry,
@@ -23,6 +24,7 @@ from kaos_core import (
     TextContent,
     ToolCapability,
     ToolCategory,
+    ToolMetadata,
     ToolResult,
     WorkflowDefinition,
     WorkflowError,
@@ -187,6 +189,39 @@ async def test_execution_engine_retry_failure_and_batch(runtime: Any) -> None:
     assert no_timeout_engine.get_metrics() == {}
 
 
+async def test_execution_engine_unexpected_exception_does_not_leak_secret(
+    runtime: KaosRuntime,
+) -> None:
+    sentinel = "sk-execution-secret"
+
+    class ExplodingTool(KaosTool):
+        @property
+        def metadata(self) -> ToolMetadata:
+            return ToolMetadata(
+                name="kaos-core-ops-raw-boom",
+                description="Raise outside FunctionTool",
+                category=ToolCategory.UTILITY,
+                capability=ToolCapability.TRANSFORM,
+                module_name="kaos-core",
+                version="0.1.0",
+            )
+
+        async def execute(self, inputs: dict[str, Any], context: Any = None) -> ToolResult:
+            del inputs, context
+            raise RuntimeError(f"provider payload included {sentinel}")
+
+    runtime.tools.register_tool(ExplodingTool())
+    engine = ExecutionEngine(config=ExecutionConfig(max_retries=0), runtime=runtime)
+
+    result = await engine.execute("kaos-core-ops-raw-boom", {})
+
+    assert result.state == ExecutionState.FAILED
+    assert result.error is not None
+    assert "failed before returning a result" in result.error
+    assert sentinel not in result.error
+    assert sentinel not in result.model_dump_json()
+
+
 async def test_workflow_failure_modes() -> None:
     @kaos_tool(
         name="kaos-core-flow-error",
@@ -255,8 +290,9 @@ async def test_workflow_failure_modes() -> None:
         )
     )
 
-    with pytest.raises(WorkflowError, match="timed out"):
+    with pytest.raises(WorkflowError, match="produced no output") as workflow_error:
         await empty_executor.execute_workflow("empty")
+    assert workflow_error.value.details["error"] == "timed out"
 
 
 async def test_resource_registry_cache_search_and_templates() -> None:
@@ -373,7 +409,7 @@ async def test_task_manager_failure_cancellation_and_pagination() -> None:
 
     async def failing_executor(definition: TaskDefinition) -> ToolResult:
         del definition
-        raise RuntimeError("task exploded")
+        raise RuntimeError("task exploded with sk-task-secret")
 
     failing_manager = TaskManager(executor=failing_executor, enabled=True)
     await failing_manager.create_task(
@@ -381,9 +417,15 @@ async def test_task_manager_failure_cancellation_and_pagination() -> None:
     )
     failed = await failing_manager.wait_for_task("failed", timeout=1.0)
     assert failed.state == TaskState.FAILED
+    assert failed.message is not None
+    assert "Task failed during execution" in failed.message
+    assert "sk-task-secret" not in failed.message
     assert failed.result is not None
     assert failed.result.isError is True
-    assert failed.result.content[0] == TextContent(text="task exploded")
+    assert failed.result.content[0] == TextContent(
+        text="Task failed during execution. Check the task inputs and runtime state, then retry."
+    )
+    assert "sk-task-secret" not in failed.result.model_dump_json()
     blocking_result = await failing_manager.get_task_result("failed", blocking=True)
     assert blocking_result.isError is True
 
