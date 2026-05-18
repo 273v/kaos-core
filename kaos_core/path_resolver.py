@@ -640,7 +640,12 @@ def _resolve_filesystem(
 
 
 def _looks_absolute(p: str) -> bool:
-    return p.startswith("/") or (len(p) >= 3 and p[1:3] == ":\\")
+    # POSIX: /abs/path
+    # Windows drive-letter: C:\... or C:/...
+    # Windows UNC / rootless backslash: \\server\share or \abs\path
+    if p.startswith(("/", "\\")):
+        return True
+    return len(p) >= 3 and p[1] == ":" and p[2] in ("/", "\\")
 
 
 def _write_temp(body: bytes, *, suffix: str = "") -> Path:
