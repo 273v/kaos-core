@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a11] — 2026-05-18
+
 ### Added
 
 - `ModuleSettings.legacy_env_vars` for opt-in legacy environment-variable
