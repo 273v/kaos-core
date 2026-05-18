@@ -1,0 +1,71 @@
+name: security-full
+
+# Standard `security-full` lane (per
+# kaos-modules/docs/oss/40-ci-cd/runner-cost-reduction-plan.md):
+# full-history gitleaks + pip-audit on the resolved lock + other
+# expensive repository-wide scanners. NOT a PR / main-push lane —
+# the cheap incremental variants live in security-light.yml.
+
+on:
+  schedule:
+    - cron: "0 2 * * 1"  # Mondays at 02:00 UTC
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-full-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gitleaks-full-history:
+    name: gitleaks (full history)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo \
+            zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --redact \
+            --no-banner \
+            --verbose \
+            --exit-code 1
+
+  pip-audit:
+    name: pip-audit (resolved lock)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Sync dependencies
+        run: uv sync --group dev --python 3.13
+
+      - name: Export dependency set
+        run: uv export --no-hashes --no-emit-project --format requirements-txt > /tmp/requirements.txt
+
+      - name: Run pip-audit
+        uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
+        with:
+          inputs: /tmp/requirements.txt

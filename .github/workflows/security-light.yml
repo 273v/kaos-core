@@ -1,0 +1,105 @@
+name: security-light
+
+# Standard `security-light` lane (per
+# kaos-modules/docs/oss/40-ci-cd/runner-cost-reduction-plan.md):
+# incremental secret/static checks on PR / main push. Full-history
+# gitleaks, pip-audit on the resolved lock, cargo-audit/deny, etc.
+# live in `security-full.yml` on a weekly schedule.
+#
+# Includes:
+#   - gitleaks on the PR diff / checked-out tree (no full history)
+#   - bandit AST static security scan
+#   - vulture dead-code scan
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-light-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  gitleaks:
+    name: gitleaks (incremental)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+          # Shallow checkout for incremental scan — the full-history
+          # variant runs weekly via security-full.yml.
+          fetch-depth: 1
+
+      - name: Run gitleaks (no-git, working-tree only)
+        run: |
+          docker run --rm -v "${GITHUB_WORKSPACE}:/repo" -w /repo \
+            zricethezav/gitleaks:latest detect \
+            --source /repo \
+            --no-git \
+            --redact \
+            --no-banner \
+            --verbose \
+            --exit-code 1
+
+  bandit:
+    name: bandit (static security)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: security-bandit-py3.13
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Run bandit
+        # Skip list justified per audit:
+        #   B101 — pytest `assert`s; framework usage.
+        #   B404 — `import subprocess`; intentional.
+        #   B603 — subprocess without shell=True; correct default.
+        #   B607 — partial-path subprocess; only used for known-safe
+        #          binaries (python, git).
+        run: |
+          uvx --python 3.13 bandit \
+            --recursive \
+            --skip B101,B404,B603,B607 \
+            --severity-level medium \
+            --confidence-level medium \
+            kaos_core
+
+  vulture:
+    name: vulture (dead-code scan)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Run vulture
+        run: |
+          uvx --python 3.13 vulture \
+            kaos_core \
+            --min-confidence 100 \
+            --ignore-names client_id,scopes,authorization_endpoint,token_endpoint,device_authorization_endpoint,url,open_ch,container_tag,message_id,parent_message_id,kwargs,context_id,frame,signum,exc_type,tb

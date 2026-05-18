@@ -1,11 +1,15 @@
-name: OpenSSF Scorecard
+name: scorecard
+
+# Standard `scorecard` lane (per
+# kaos-modules/docs/oss/40-ci-cd/runner-cost-reduction-plan.md):
+# OpenSSF Scorecard posture signal. NOT a `main` push lane —
+# runs weekly, on manual dispatch, and on branch-protection changes.
 
 on:
   branch_protection_rule:
   schedule:
     - cron: "23 4 * * 1"  # Mondays at 04:23 UTC
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 permissions: read-all
 
@@ -35,6 +39,6 @@ jobs:
           path: results.sarif
           retention-days: 7
       - name: Upload SARIF to GitHub code scanning
-        uses: github/codeql-action/upload-sarif@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4.35.4
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           sarif_file: results.sarif
