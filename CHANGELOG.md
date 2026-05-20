@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-05-20
+
+### Changed
+
+- 0.1.0 GA — WU-L of the 0.1.0 GA plan. First stable release of
+  `kaos-core`. The public API is frozen for the 0.1.x line: no
+  breaking changes will land until 0.2.0. kaos-core has no kaos-*
+  dependencies, so the only delta vs. 0.1.0rc1 is the version bump
+  itself; downstream Layer 1+ packages raise their pin floor to
+  `>=0.1.0,<0.2` in this same WU-L release wave. WU-K rc1 verification
+  green (10/10 Chrome MCP cases) per
+  `kaos-modules/docs/releases/2026-05-20-0.1.0rc1-wu-k-green.md`.
+
 ## [0.1.0rc1] — 2026-05-20
 
 ### Changed
