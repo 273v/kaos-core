@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0a12] — 2026-05-20
+
+### Added
+
+- **`kaos_core.types.capability`** — `Capability`, `CapabilityKind`,
+  `CostClass`, `LatencyClass`, and `EMPTY_CAPABILITIES` constant.
+  Uniform abstraction over Tool / Source / Retriever / Judge /
+  Persona / UI-surface, anchoring the kaos-agents Step 1 lateral
+  redesign. The capability TYPE lives in kaos-core (alongside
+  `ToolMetadata` / `ToolAnnotations` / `ToolCategory`) to preserve
+  kaos-mcp's independence from kaos-agents; the in-process
+  `CapabilityRegistry` lives in `kaos_agents.registry` and consumes
+  this type. See
+  `kaos-modules/docs/plans/2026-05-19-lateral-redesign-capability-layer.md`.
+- Coarse-grained `CostClass` (FREE / CHEAP / MEDIUM / EXPENSIVE) and
+  `LatencyClass` (INSTANT / FAST / SLOW / VERY_SLOW) buckets so the
+  planner can reason about cost and latency without per-call
+  estimates. Concrete spend is still tracked in
+  `ActionResult.cost_usd` post-execution; these buckets are
+  pre-execution planning hints.
+
+### Tests
+
+- New `tests/unit/test_capability.py` — unit coverage for the type
+  shape, equality, hashing, and the `EMPTY_CAPABILITIES` sentinel.
+
 ## [0.1.0a11] — 2026-05-18
 
 ### Added
