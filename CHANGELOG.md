@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0rc1] — 2026-05-20
+
+### Changed
+
+- WU-J of the 0.1.0 GA plan; release candidate for 0.1.0 GA. Freezes
+  the public API for the 0.1.0 line — no breaking changes will land in
+  0.1.x. kaos-core has no kaos-* dependencies, so the only delta vs.
+  0.1.0a12 is the version bump itself; the pin floor raised to
+  `>=0.1.0rc1,<0.2` is consumed by downstream Layer 1+ packages in
+  this same release wave.
+
 ## [0.1.0a12] — 2026-05-20
 
 ### Added
