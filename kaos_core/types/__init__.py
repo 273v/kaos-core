@@ -1,5 +1,12 @@
 from kaos_core.types.aliases import Cursor, MimeType, ProgressToken, RequestId, Timestamp, Uri
 from kaos_core.types.annotations import ResourceAnnotations, ToolAnnotations
+from kaos_core.types.capability import (
+    EMPTY_CAPABILITIES,
+    Capability,
+    CapabilityKind,
+    CostClass,
+    LatencyClass,
+)
 from kaos_core.types.content import (
     AudioContent,
     ContentType,
@@ -42,11 +49,15 @@ from kaos_core.types.tasks import (
 )
 
 __all__ = [
+    "EMPTY_CAPABILITIES",
     "ArtifactRetentionPolicy",
     "ArtifactRole",
     "AssistantMessage",
     "AudioContent",
+    "Capability",
+    "CapabilityKind",
     "ContentType",
+    "CostClass",
     "CreateTaskResult",
     "Cursor",
     "ElicitationMode",
@@ -55,6 +66,7 @@ __all__ = [
     "ExecutionState",
     "ImageContent",
     "IsolationMode",
+    "LatencyClass",
     "LogLevel",
     "Message",
     "MimeType",
