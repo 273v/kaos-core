@@ -402,8 +402,22 @@ async def _resolve(
     # 6. Bare name. Prepend the context's default VFS namespace (e.g. "files/"
     #    when the SPA backend has wired one) and resolve through the VFS.
     #    No CWD / absolute-filesystem fallback in 0.1.0a10+.
+    #
+    # Plan §Issue 7 / #582 idempotency: if the caller already passed an
+    # already-namespaced path (e.g. "files/contract.docx" when the
+    # namespace is "files/"), do NOT double-prepend it to
+    # "files/files/contract.docx". The double-prefix bug was the root
+    # cause of every "uploaded NDA not found" P0 in the 2026-05-17 NDA
+    # verification matrix. Stripping any leading "./" and the namespace
+    # itself before re-applying lets us be lenient on caller hygiene
+    # without changing the resolver's contract for bare names.
     namespace = getattr(context, "default_vfs_namespace", "") or ""
-    vfs_lookup = namespace + stripped if namespace else stripped
+    if namespace and stripped.startswith(namespace):
+        vfs_lookup = stripped
+    elif namespace:
+        vfs_lookup = namespace + stripped
+    else:
+        vfs_lookup = stripped
     return await _resolve_vfs(
         vfs_lookup,
         context=context,
