@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-05-22
+
+Launch-blocker plan §Issue 7 / #582 — idempotent default-VFS-namespace
+prepend in `path_resolver._resolve`.
+
+### Fixed
+
+- **#582 path_resolver double-prefix.** Pre-0.1.1, calling
+  `resolve_input_path("files/contract.docx")` against a context
+  with `default_vfs_namespace="files/"` produced the broken lookup
+  `"files/files/contract.docx"`. Idempotency check via
+  `if namespace and stripped.startswith(namespace)` now skips the
+  prepend when the caller already passed an already-namespaced
+  path. Bare names still get the namespace prepended exactly once.
+
+### Tests
+
+- `tests/unit/test_path_resolver_idempotent.py` — 6 new tests:
+  bare + already-namespaced both resolve to the same content;
+  double-prefix never appears; empty-namespace passes through;
+  partial-overlap (`filesystem-report.txt` vs `files/`) NOT
+  mistaken for already-namespaced; multi-segment namespaces
+  (`matters/{mid}/sessions/{sid}/files/`) work idempotently;
+  slash-normalization sweep.
+- 23/23 existing `test_path_resolver.py` tests still pass.
+
 ## [0.1.0] — 2026-05-20
 
 ### Changed
