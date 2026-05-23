@@ -94,13 +94,18 @@ from kaos_core.security import (
 )
 from kaos_core.tools import register_core_tools
 from kaos_core.types import (
+    EMPTY_CAPABILITIES,
     ArtifactRetentionPolicy,
     ArtifactRole,
+    Capability,
+    CapabilityKind,
     ContentType,
+    CostClass,
     ElicitationMode,
     EmbeddedResource,
     ImageContent,
     IsolationMode,
+    LatencyClass,
     LogLevel,
     ParameterSchema,
     PromptMetadata,
@@ -139,6 +144,7 @@ from kaos_core.vfs import (
 )
 
 __all__ = [
+    "EMPTY_CAPABILITIES",
     "INLINE_THRESHOLD",
     "SUMMARY_THRESHOLD",
     "UNSAFE_SCHEMES",
@@ -147,8 +153,11 @@ __all__ = [
     "ArtifactRetentionPolicy",
     "ArtifactRole",
     "ArtifactStore",
+    "Capability",
+    "CapabilityKind",
     "ClientCapabilities",
     "ContentType",
+    "CostClass",
     "CredentialStore",
     "DelegationRequest",
     "DelegationResult",
@@ -181,6 +190,7 @@ __all__ = [
     "KaosSettings",
     "KaosTool",
     "KaosURI",
+    "LatencyClass",
     "LogEvent",
     "LogLevel",
     "McpLogLevel",

@@ -13,6 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `Development Status :: 5 - Production/Stable` to reflect the
   0.1.0 GA release (WU-L #543) that froze the public API for the
   0.1.x line. Closes audit-04/kaos-core.md Family D (classifier drift).
+- **audit-04 F-002 capability re-export.** `kaos_core.types.capability`
+  symbols (`Capability`, `CapabilityKind`, `CostClass`, `LatencyClass`,
+  `EMPTY_CAPABILITIES`) are now re-exported from the top-level
+  `kaos_core` facade and listed in `kaos_core.__all__`. Pre-fix,
+  downstream packages (notably `kaos-agents`) had to import them from
+  the typed submodule path while peer capability classes
+  (`ToolCapability`, `ResourcesCapability`, `RootsCapability`) were
+  already at the top level — an inconsistent surface the audit flagged
+  as a Family E `__all__` drift finding.
 
 ### Fixed
 
@@ -25,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tool metadata always matches the wheel/sdist version, and the test
   asserts `meta.version == kaos_core.__version__` instead of a literal.
   Closes audit-04/kaos-core.md F-001.
+
+### Tests
+
+- `tests/unit/test_capability_reexport.py` — pins the re-export
+  identity (top-level objects must be `is`-identical to the typed
+  submodule's) plus the `__all__` membership contract.
 
 ## [0.1.1] — 2026-05-22
 
