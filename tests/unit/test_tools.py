@@ -82,7 +82,12 @@ class TestToolMetadata:
         meta = tool.metadata
         assert meta.name.startswith("kaos-core-"), f"{meta.name} must start with 'kaos-core-'"
         assert meta.module_name == "kaos-core"
-        assert meta.version == "0.1.0"
+        # Pin the contract that tool metadata version tracks the package
+        # version, not a hardcoded literal. audit-04/kaos-core.md F-001
+        # caught this drifting in earlier releases.
+        from kaos_core import __version__
+
+        assert meta.version == __version__
 
     @pytest.mark.parametrize("tool_cls", TOOL_CLASSES)
     def test_annotations_are_set(self, tool_cls: type[KaosTool]) -> None:

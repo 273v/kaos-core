@@ -14,6 +14,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   0.1.0 GA release (WU-L #543) that froze the public API for the
   0.1.x line. Closes audit-04/kaos-core.md Family D (classifier drift).
 
+### Fixed
+
+- **`kaos_core.tools._VERSION` now tracks the package version.** Previously
+  `kaos_core/tools.py:29` hardcoded `_VERSION = "0.1.0"` while
+  `kaos_core/_version.py:1` was `0.1.1`. The MCP tool metadata (via
+  `ToolMetadata.version` on all 11 core tools) reported the stale value
+  and the unit test in `tests/unit/test_tools.py` pinned that literal,
+  hiding the drift. `_VERSION` now imports from `_version.py` so the
+  tool metadata always matches the wheel/sdist version, and the test
+  asserts `meta.version == kaos_core.__version__` instead of a literal.
+  Closes audit-04/kaos-core.md F-001.
 
 ## [0.1.1] — 2026-05-22
 
