@@ -11,6 +11,7 @@ import base64
 from pathlib import Path
 from typing import Any
 
+from kaos_core._version import __version__ as _VERSION
 from kaos_core.artifacts.models import SUMMARY_THRESHOLD
 from kaos_core.base.context import KaosContext
 from kaos_core.base.tool import KaosTool
@@ -26,7 +27,11 @@ from kaos_core.types.results import ToolResult
 logger = get_logger(__name__)
 
 _MODULE = "kaos-core"
-_VERSION = "0.1.0"
+# `_VERSION` is imported from `_version.py` (the package's single source of
+# truth) so the MCP tool metadata reported by `ToolMetadata.version` always
+# matches the wheel/sdist version. A hardcoded literal here drifted in
+# earlier releases — audit-04/kaos-core.md F-001 caught the test pinning
+# the stale value while the package had moved to a newer minor.
 
 # All core tools are read-only, idempotent, and local-only (no external services).
 _CORE_ANNOTATIONS = ToolAnnotations(
