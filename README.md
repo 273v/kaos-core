@@ -8,7 +8,7 @@
 [![PyPI - Version](https://img.shields.io/pypi/v/kaos-core)](https://pypi.org/project/kaos-core/)
 [![Python](https://img.shields.io/pypi/pyversions/kaos-core)](https://pypi.org/project/kaos-core/)
 [![License](https://img.shields.io/pypi/l/kaos-core)](https://github.com/273v/kaos-core/blob/main/LICENSE)
-[![CI](https://github.com/273v/kaos-core/actions/workflows/ci.yml/badge.svg)](https://github.com/273v/kaos-core/actions/workflows/ci.yml)
+[![quality](https://github.com/273v/kaos-core/actions/workflows/quality.yml/badge.svg)](https://github.com/273v/kaos-core/actions/workflows/quality.yml)
 
 `kaos-core` is the foundational runtime for KAOS modules — an MCP-native type
 system, runtime container, registries, execution engine, agent primitives, and
