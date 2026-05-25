@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] — 2026-05-25
+
+Dependabot batch.
+
+### Dependabot
+
+- chore(deps): bump the deps-minor group with 3 updates (#33)
+
 ## [0.1.2] — 2026-05-23
 
 audit-04 remediation bundle. Three audit-04 closures + Family D classifier promotion.
