@@ -560,11 +560,50 @@ async def _resolve_vfs(
             if namespace
             else ""
         )
+        # 2026-05-27 S16 fix: when the lookup fails, enumerate sibling
+        # files in the same namespace and surface them in the error so
+        # the agent can retry with the actual filename. Previously the
+        # agent would call a format parser with a placeholder name
+        # (e.g. "document.pdf") and the resolver would return the bare
+        # "not found" message — the agent had no information on what
+        # IS available, so subsequent retries kept the same wrong name
+        # or gave up. Listing the sibling files in the error message
+        # closes that loop in one extra LLM turn.
+        sibling_hint = ""
+        try:
+            vfs = getattr(getattr(context, "runtime", None), "vfs", None)
+            if vfs is not None:
+                # Walk the namespace (or the parent of the requested
+                # path when no namespace is set) to find what IS
+                # reachable. ``vfs.list`` returns ``list[str]`` of
+                # absolute paths under the prefix.
+                listing_root = namespace or vfs_path.rsplit("/", 1)[0] if "/" in vfs_path else ""
+                try:
+                    paths = await vfs.list(listing_root)
+                except Exception:
+                    paths = []
+                if paths:
+                    file_names: list[str] = []
+                    for p in paths[:25]:
+                        name = p.rsplit("/", 1)[-1] if p else ""
+                        if name:
+                            file_names.append(name)
+                    if file_names:
+                        extra = "" if len(paths) <= 25 else f" (and {len(paths) - 25} more)"
+                        sibling_hint = (
+                            f" Files actually reachable in this session: "
+                            f"{', '.join(file_names)}{extra}. "
+                            f"Re-issue this tool call with one of those filenames."
+                        )
+        except Exception:
+            # Best-effort enrichment — never let the discovery fallback
+            # mask the underlying resolution error.
+            pass
         raise InputPathResolutionError(
             what=f"VFS path {vfs_path!r} not found in session {context.session_id!r}",
             how_to_fix=(
                 "Verify the file is uploaded to this session. Listing the "
-                "session VFS shows what's reachable." + ns_hint
+                "session VFS shows what's reachable." + ns_hint + sibling_hint
             ),
             alternative_tool="kaos-core-vfs-list to see what's in this session",
             requested=requested,

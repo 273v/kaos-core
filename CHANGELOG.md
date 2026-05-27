@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] — 2026-05-27
+
+Diagnostic improvement to `resolve_input_path` for agent self-recovery
+when a path argument is wrong. No public API change; no behavior
+change on the success path.
+
+### Changed
+
+- `kaos_core.path_resolver.resolve_input_path`: the `VFS path not
+  found` error now enumerates the actual files present in the
+  session's default namespace and embeds them in the `how_to_fix`
+  field. Previously the agent saw only "verify the file is uploaded"
+  and "Listing the session VFS shows what's reachable" — useful
+  pointers but no listing. The new message surfaces up to 25 actual
+  filenames inline, so an agent that retries after the error can
+  substitute the correct name in one more turn. Discovered while
+  diagnosing kaos-agents scenario_16 corpus-stress regression where
+  a Sonnet 4.6 worker passed placeholder names (`document.pdf` /
+  `document.docx` / `document.xlsx`) to format parsers; the
+  parsers' bare not-found error didn't tell the agent that
+  `pile-revenue.pdf` / `pile-counsel.docx` / `pile-lineitems.xlsx`
+  were sitting in the session VFS. **This change does NOT fix
+  scenario_16 on its own** — the agent gives up after one error
+  rather than retrying — but it makes any retry-capable agent
+  self-correct. Best-effort: the enrichment swallows VFS-list
+  errors so a resolver malfunction can't mask the underlying
+  not-found message.
+
 ## [0.1.3] — 2026-05-25
 
 Dependabot batch.
