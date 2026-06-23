@@ -56,11 +56,41 @@ def setup_kaos_logging(
     )
     handler.setFormatter(formatter)
     if force:
+        # Drop any prior handlers (including the default NullHandler) so the
+        # application's configuration fully replaces it.
         logger.handlers.clear()
-    if not logger.handlers:
+    # Only attach our handler if the logger has no *real* handler yet. The
+    # library installs a NullHandler by default (see ``_install_null_handler``);
+    # treat that as "unconfigured" and replace it.
+    real_handlers = [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]
+    if not real_handlers:
+        for null in [h for h in logger.handlers if isinstance(h, logging.NullHandler)]:
+            logger.removeHandler(null)
         logger.addHandler(handler)
     logger.propagate = False
     return logger
+
+
+def _install_null_handler() -> None:
+    """Attach a single :class:`logging.NullHandler` to the ``kaos`` logger.
+
+    This follows the standard library convention for libraries: it keeps the
+    library silent by default and prevents "No handlers could be found"
+    warnings, while leaving handler/level/format configuration entirely to the
+    application (via :func:`setup_kaos_logging`). The library must never attach
+    a real handler or set a level as a side effect of import or operation.
+    """
+    root = logging.getLogger("kaos")
+    if not any(isinstance(h, logging.NullHandler) for h in root.handlers):
+        root.addHandler(logging.NullHandler())
+
+
+# Install the NullHandler as soon as this module is imported so the ``kaos``
+# logger hierarchy is silent by default and never emits the stdlib
+# "No handlers could be found" warning. This is the one library-side logging
+# action that the convention explicitly permits; it attaches no real handler,
+# sets no level, and does not touch ``propagate``.
+_install_null_handler()
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -83,7 +113,10 @@ def get_logger(name: str) -> logging.Logger:
         name = "kaos." + name[5:]
     # else: already starts with "kaos." — use as-is
 
-    logger = logging.getLogger(name)
-    if not logger.handlers and not logging.getLogger("kaos").handlers:
-        setup_kaos_logging()
-    return logger
+    # NOTE: A library must never auto-configure logging (attach real handlers,
+    # set levels, or call basicConfig) as a side effect of obtaining a logger.
+    # We only ensure a NullHandler is present so the library stays silent by
+    # default; attaching real handlers/levels is the application's job via
+    # ``setup_kaos_logging``.
+    _install_null_handler()
+    return logging.getLogger(name)

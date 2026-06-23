@@ -5,7 +5,31 @@ All notable changes to `kaos-core` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.5] - 2026-06-23
+
+### Fixed
+
+- `kaos_core.logging`: the library no longer auto-configures logging as a
+  side effect of import or normal operation. Previously `get_logger()`
+  lazily called `setup_kaos_logging()` on first use, which attached a
+  `StreamHandler` to the `kaos` logger, set the level to `INFO`, and set
+  `propagate = False` — so applications could not control logging and
+  routine library output leaked to the console. Following the standard
+  library convention, the `kaos` logger now gets a single
+  `logging.NullHandler()` by default (silent, no "No handlers could be
+  found" warning) and handler/level/format configuration is left entirely
+  to the application via `setup_kaos_logging(...)`. `setup_kaos_logging`
+  now treats the default `NullHandler` as "unconfigured" and replaces it.
+
+### Changed
+
+- `kaos-core` CLI: added a `--log-level` option. Logging is silent by
+  default; passing `--log-level DEBUG` (etc.) calls `setup_kaos_logging`
+  at the application entry point. This is the only place in the package
+  that configures logging.
+- Credential tier migration logs in `kaos_core.config.storage.dispatcher`
+  demoted from `INFO` to `DEBUG` (routine, transparent best-effort
+  promotion of secrets between storage tiers).
 
 ## [0.1.4] — 2026-05-27
 
