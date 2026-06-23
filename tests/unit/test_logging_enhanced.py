@@ -56,6 +56,50 @@ class TestLoggerHierarchy:
         assert parent is root
 
 
+class TestLibrarySilentByDefault:
+    """The library must not auto-configure logging (no real handlers, no level
+    set) as a side effect of import or normal operation. Only an application
+    calling ``setup_kaos_logging`` may attach a real handler."""
+
+    def _reset_kaos_logger(self) -> None:
+        root = logging.getLogger("kaos")
+        root.handlers.clear()
+        root.setLevel(logging.NOTSET)
+        root.propagate = True
+
+    def test_get_logger_does_not_attach_real_handler(self) -> None:
+        self._reset_kaos_logger()
+        get_logger("kaos_office.docx.writer")
+        root = logging.getLogger("kaos")
+        # Only a NullHandler may be present; never a StreamHandler/FileHandler.
+        real = [h for h in root.handlers if not isinstance(h, logging.NullHandler)]
+        assert real == []
+        # The library must not have set a level.
+        assert root.level == logging.NOTSET
+
+    def test_get_logger_installs_null_handler(self) -> None:
+        self._reset_kaos_logger()
+        get_logger("kaos.something")
+        root = logging.getLogger("kaos")
+        assert any(isinstance(h, logging.NullHandler) for h in root.handlers)
+
+    def test_emit_is_silent_without_setup(self, capsys) -> None:  # type: ignore[no-untyped-def]
+        self._reset_kaos_logger()
+        logger = get_logger("kaos_office.docx.writer")
+        logger.info("docx.writer: wrote untitled, blocks=2")
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+    def test_app_can_configure_after_default(self) -> None:
+        self._reset_kaos_logger()
+        get_logger("kaos.something")  # installs NullHandler
+        logger = setup_kaos_logging(log_level="DEBUG", force=True)
+        real = [h for h in logger.handlers if not isinstance(h, logging.NullHandler)]
+        assert len(real) == 1
+        assert logger.level == logging.DEBUG
+
+
 def test_context_logging_uses_current_context_ids() -> None:
     records: list[logging.LogRecord] = []
 

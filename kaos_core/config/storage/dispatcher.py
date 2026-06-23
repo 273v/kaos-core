@@ -244,7 +244,7 @@ class HardenedCredentialStore:
                 return target.tier
             target.set(module, service, key, value)
             backend.delete(module, service, key)
-            logger.info(
+            logger.debug(
                 "Migrated credential %s/%s/%s from tier %s to tier %s",
                 module,
                 service,
@@ -278,7 +278,7 @@ class HardenedCredentialStore:
                 if backend.get(module, service, key) is None:
                     backend.set(module, service, key, value)
                     promoted = True
-                    logger.info(
+                    logger.debug(
                         "Auto-migrated credential %s/%s/%s upward from tier %s to tier %s",
                         module,
                         service,

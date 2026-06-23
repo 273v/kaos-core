@@ -502,6 +502,12 @@ def main(argv: list[str] | None = None) -> None:
         description="KAOS runtime inspection and debugging tools",
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+    parser.add_argument(
+        "--log-level",
+        default=None,
+        help="Configure kaos logging at this level (e.g. DEBUG, INFO). "
+        "Logging is silent by default.",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     # --- tools subcommand with nested actions ---
@@ -595,6 +601,12 @@ def main(argv: list[str] | None = None) -> None:
     p_auth_status.add_argument("--json", action="store_true", help="Structured JSON output")
 
     args = parser.parse_args(argv)
+
+    # The CLI is an application entry point, so it may configure logging.
+    if args.log_level is not None:
+        from kaos_core.logging import setup_kaos_logging
+
+        setup_kaos_logging(log_level=args.log_level)
 
     handlers: dict[tuple[str, str], Any] = {
         ("tools", "list"): _cmd_tools_list,
