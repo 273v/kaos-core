@@ -145,6 +145,6 @@ class ArtifactManifest(KaosModel):
             # `list` is invariant in its parameter; the local
             # `list[TextContent | ResourceLinkContent]` cannot widen to
             # `list[ContentType]` even though every element is assignable.
-            content=content,  # ty: ignore[invalid-argument-type]
+            content=content,
             structuredContent=structured_content,
         )
