@@ -40,4 +40,6 @@ jobs:
         run: uv sync --group dev --resolution=lowest-direct --python 3.13
 
       - name: Run tests
-        run: uv run pytest -m "not live and not network and not slow" --no-cov -q
+        # --no-sync is required: a plain `uv run` re-syncs the env to uv.lock
+        # (highest versions), silently undoing the lowest-direct install.
+        run: uv run --no-sync pytest -m "not live and not network and not slow" --no-cov -q
