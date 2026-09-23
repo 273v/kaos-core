@@ -62,8 +62,12 @@ jobs:
       - name: Sync dependencies
         run: uv sync --group dev --python 3.13
 
+      # Audit every locked extra and dependency group, not just the default
+      # install: optional extras (e.g. [mcp]) pin their own web stack, and a
+      # default-only export left those pins unaudited. The export is fully
+      # pinned, so pip-audit checks it as-is (--no-deps --disable-pip).
       - name: Export dependency set
-        run: uv export --no-hashes --no-emit-project --format requirements-txt > /tmp/requirements.txt
+        run: uv export --no-hashes --no-emit-project --all-extras --all-groups --format requirements-txt > /tmp/requirements.txt
 
       # Use direct `uvx pip-audit` instead of pypa/gh-action-pip-audit@v1.x:
       # the action's bundled Python (<3.13) can't satisfy our Requires-Python >=3.13 deps.
@@ -71,4 +75,6 @@ jobs:
         run: |
           uvx --python 3.13 --from pip-audit pip-audit \
             --requirement /tmp/requirements.txt \
+            --no-deps \
+            --disable-pip \
             --strict
