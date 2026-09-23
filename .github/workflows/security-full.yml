@@ -65,7 +65,10 @@ jobs:
       - name: Export dependency set
         run: uv export --no-hashes --no-emit-project --format requirements-txt > /tmp/requirements.txt
 
+      # Use direct `uvx pip-audit` instead of pypa/gh-action-pip-audit@v1.x:
+      # the action's bundled Python (<3.13) can't satisfy our Requires-Python >=3.13 deps.
       - name: Run pip-audit
-        uses: pypa/gh-action-pip-audit@1220774d901786e6f652ae159f7b6bc8fea6d266 # v1.1.0
-        with:
-          inputs: /tmp/requirements.txt
+        run: |
+          uvx --python 3.13 --from pip-audit pip-audit \
+            --requirement /tmp/requirements.txt \
+            --strict

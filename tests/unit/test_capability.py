@@ -78,8 +78,7 @@ class TestCapability:
             description="x",
         )
         # __slots__ disables instance __dict__ — confirms slots=True
-        with pytest.raises(AttributeError):
-            c.__dict__  # noqa: B018
+        assert not hasattr(c, "__dict__")
 
     def test_empty_name_rejected(self) -> None:
         with pytest.raises(ValueError, match="non-empty"):
